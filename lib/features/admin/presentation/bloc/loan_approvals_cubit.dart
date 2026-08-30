@@ -160,7 +160,7 @@ class LoanApprovalsCubit extends Cubit<LoanApprovalsState> {
     return switch (params.status) {
       LoanStatus.rejected => 'Application rejected.',
       LoanStatus.disbursed =>
-        'Funds marked as released. Borrower has 2 days to report a problem.',
+        'Funds marked as released. Borrower can confirm receipt now or report a problem within 2 days.',
       LoanStatus.fundIssue => 'Fund issue recorded.',
       LoanStatus.approved when params.counterOfferPrincipalRupees != null =>
         'Counter-offer approved. Release funds after you send the amount.',

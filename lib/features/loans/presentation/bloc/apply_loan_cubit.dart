@@ -2,6 +2,8 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:local_lending_app/domain/entities/repayment_frequency.dart';
 import 'package:local_lending_app/domain/entities/repayment_schedule.dart';
+import 'package:local_lending_app/features/admin/domain/entities/kyc_profile.dart';
+import 'package:local_lending_app/features/admin/domain/repositories/admin_repository.dart';
 import 'package:local_lending_app/features/loans/domain/entities/loan_application.dart';
 import 'package:local_lending_app/features/loans/domain/entities/loan_purpose.dart';
 import 'package:local_lending_app/features/loans/domain/usecases/apply_for_loan.dart';
@@ -20,6 +22,8 @@ class ApplyLoanState extends Equatable {
     this.annualInterestRatePercent = 24,
     this.schedule,
     this.status = ApplyLoanStatus.editing,
+    this.checkingKyc = true,
+    this.kycVerified = false,
     this.errorMessage,
     this.application,
   });
@@ -32,6 +36,8 @@ class ApplyLoanState extends Equatable {
   final double annualInterestRatePercent;
   final RepaymentSchedule? schedule;
   final ApplyLoanStatus status;
+  final bool checkingKyc;
+  final bool kycVerified;
   final String? errorMessage;
   final LoanApplication? application;
 
@@ -44,6 +50,8 @@ class ApplyLoanState extends Equatable {
     double? annualInterestRatePercent,
     RepaymentSchedule? schedule,
     ApplyLoanStatus? status,
+    bool? checkingKyc,
+    bool? kycVerified,
     String? errorMessage,
     LoanApplication? application,
   }) {
@@ -57,6 +65,8 @@ class ApplyLoanState extends Equatable {
           annualInterestRatePercent ?? this.annualInterestRatePercent,
       schedule: schedule ?? this.schedule,
       status: status ?? this.status,
+      checkingKyc: checkingKyc ?? this.checkingKyc,
+      kycVerified: kycVerified ?? this.kycVerified,
       errorMessage: errorMessage,
       application: application ?? this.application,
     );
@@ -72,19 +82,50 @@ class ApplyLoanState extends Equatable {
     annualInterestRatePercent,
     schedule,
     status,
+    checkingKyc,
+    kycVerified,
     errorMessage,
     application,
   ];
 }
 
 class ApplyLoanCubit extends Cubit<ApplyLoanState> {
-  ApplyLoanCubit({required this._applyForLoan, required this._calculateEmi})
-    : super(const ApplyLoanState()) {
+  ApplyLoanCubit({
+    required this._applyForLoan,
+    required this._calculateEmi,
+    required this._adminRepository,
+  }) : super(const ApplyLoanState()) {
     _recalculate();
   }
 
   final ApplyForLoan _applyForLoan;
   final CalculateEmi _calculateEmi;
+  final AdminRepository _adminRepository;
+
+  Future<void> loadKyc(String userId) async {
+    emit(state.copyWith(checkingKyc: true));
+    final result = await _adminRepository.getKycProfile(userId);
+    if (isClosed) return;
+    result.fold(
+      (failure) => emit(
+        state.copyWith(
+          checkingKyc: false,
+          kycVerified: false,
+          errorMessage: failure.message,
+        ),
+      ),
+      (profile) {
+        final allowed = profile.allowsLending();
+        emit(
+          state.copyWith(
+            checkingKyc: false,
+            kycVerified: allowed,
+            errorMessage: allowed ? null : KycProfile.lendingRequirementMessage,
+          ),
+        );
+      },
+    );
+  }
 
   void nextStep() {
     if (state.step < 3) {
@@ -158,6 +199,15 @@ class ApplyLoanCubit extends Cubit<ApplyLoanState> {
     required String borrowerName,
     String? borrowerPhone,
   }) async {
+    if (!state.kycVerified) {
+      emit(
+        state.copyWith(
+          status: ApplyLoanStatus.error,
+          errorMessage: KycProfile.lendingRequirementMessage,
+        ),
+      );
+      return;
+    }
     emit(state.copyWith(status: ApplyLoanStatus.submitting));
     final result = await _applyForLoan(
       ApplyForLoanParams(

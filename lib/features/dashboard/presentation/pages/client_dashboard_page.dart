@@ -16,6 +16,7 @@ import 'package:local_lending_app/features/loans/domain/entities/loan_applicatio
 import 'package:local_lending_app/features/loans/domain/entities/loan_status.dart';
 import 'package:local_lending_app/flavors/flavor_config.dart';
 import 'package:local_lending_app/shared/widgets/installment_tile.dart';
+import 'package:local_lending_app/shared/widgets/logout_action.dart';
 import 'package:local_lending_app/shared/widgets/portal_switch_action.dart';
 import 'package:local_lending_app/shared/widgets/status_chip.dart';
 
@@ -50,14 +51,24 @@ class ClientDashboardPage extends StatelessWidget {
                   onPressed: () => context.push('/profile/kyc'),
                 ),
                 const PortalSwitchAction(),
-                IconButton(
-                  icon: const Icon(Icons.logout),
-                  tooltip: 'Log out',
-                  onPressed: () => context.read<AuthCubit>().signOut(),
-                ),
+                const LogoutAction(),
               ],
             ),
-            body: BlocBuilder<BorrowerDashboardCubit, BorrowerDashboardState>(
+            body: BlocConsumer<BorrowerDashboardCubit, BorrowerDashboardState>(
+              listenWhen: (previous, current) =>
+                  previous.errorMessage != current.errorMessage ||
+                  previous.infoMessage != current.infoMessage,
+              listener: (context, state) {
+                final message =
+                    state.infoMessage ??
+                    (state.status == DashboardStatus.error
+                        ? null
+                        : state.errorMessage);
+                if (message == null) return;
+                ScaffoldMessenger.of(context)
+                  ..hideCurrentSnackBar()
+                  ..showSnackBar(SnackBar(content: Text(message)));
+              },
               builder: (context, state) {
                 if (state.status == DashboardStatus.loading ||
                     state.status == DashboardStatus.initial) {
@@ -184,9 +195,15 @@ class _DashboardBody extends StatelessWidget {
                 child: _ActionCard(
                   icon: Icons.add_card,
                   title: 'Apply for Loan',
-                  subtitle: 'Instant digital approval',
+                  subtitle: state.kyc?.allowsLending() == true
+                      ? 'Instant digital approval'
+                      : 'Submit KYC to apply',
                   color: FlavorConfig.primaryColor,
-                  onTap: () => context.push('/loans/apply'),
+                  onTap: () => context.push(
+                    state.kyc?.allowsLending() == true
+                        ? '/loans/apply'
+                        : '/profile/kyc',
+                  ),
                 ),
               ),
               const SizedBox(width: 14),
@@ -302,23 +319,84 @@ class _DisbursementBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final disbursedOn = loan.disbursementDate ?? loan.appliedAt;
     final deadline = DisbursementPolicy.confirmationDeadline(disbursedOn);
+    final acting = context.watch<BorrowerDashboardCubit>().state.acting;
     return Material(
       color: const Color(0xFFEFF6FF),
       borderRadius: BorderRadius.circular(16),
-      child: ListTile(
-        leading: const Icon(Icons.account_balance_wallet_outlined),
-        title: const Text('Funds released'),
-        subtitle: Text(
-          'Confirm receipt by ${AppDateUtils.formatDisplay(deadline.subtract(const Duration(days: 1)))}. EMI starts from ${AppDateUtils.formatDisplay(disbursedOn)} if no issue is reported.',
-        ),
-        trailing: TextButton(
-          onPressed: () => context.push('/loans/status'),
-          child: const Text('Report issue'),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.account_balance_wallet_outlined),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Funds released',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Confirm receipt now, or report if not received by ${AppDateUtils.formatDisplay(deadline.subtract(const Duration(days: 1)))}. EMI starts from ${AppDateUtils.formatDisplay(disbursedOn)} once confirmed.',
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed: acting
+                      ? null
+                      : () => _confirmReceipt(context, loan),
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: const Text('Mark as received'),
+                ),
+                OutlinedButton(
+                  onPressed: acting
+                      ? null
+                      : () => context.push('/loans/status'),
+                  child: const Text('Fund not received'),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  Future<void> _confirmReceipt(BuildContext context, Loan loan) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Mark funds as received?'),
+        content: const Text(
+          'This confirms you received the loan amount. EMI will start from the disbursement date and you will no longer be able to report a fund issue.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Confirm received'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    await context.read<BorrowerDashboardCubit>().confirmReceipt(loan);
   }
 }
 

@@ -28,7 +28,15 @@ class _KycReviewView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('KYC review')),
-      body: BlocBuilder<KycReviewCubit, KycReviewState>(
+      body: BlocConsumer<KycReviewCubit, KycReviewState>(
+        listenWhen: (previous, current) =>
+            previous.errorMessage != current.errorMessage &&
+            current.errorMessage != null,
+        listener: (context, state) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
+        },
         builder: (context, state) {
           if (state.loading) {
             return const Center(child: CircularProgressIndicator());
@@ -48,6 +56,7 @@ class _KycReviewView extends StatelessWidget {
                   ),
                   for (final status in [
                     KycStatus.submitted,
+                    KycStatus.pending,
                     KycStatus.expired,
                     KycStatus.verified,
                     KycStatus.rejected,
@@ -62,9 +71,18 @@ class _KycReviewView extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               if (state.visible.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.only(top: 32),
-                  child: Center(child: Text('No KYC records in this filter.')),
+                Padding(
+                  padding: const EdgeInsets.only(top: 32),
+                  child: Center(
+                    child: Text(
+                      state.errorMessage != null
+                          ? state.errorMessage!
+                          : state.profiles.isEmpty
+                          ? 'No KYC records yet. Registered borrowers appear here after they open the app, and move to Submitted when they send documents.'
+                          : 'No KYC records in this filter.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 )
               else
                 ...state.visible.map(
@@ -146,6 +164,13 @@ class _KycReviewCard extends StatelessWidget {
                 ],
               ),
             ],
+            if (profile.status == KycStatus.pending)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Waiting for the borrower to submit identity and address documents.',
+                ),
+              ),
             if (profile.status == KycStatus.submitted) ...[
               const SizedBox(height: 8),
               Wrap(

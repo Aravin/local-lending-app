@@ -158,7 +158,8 @@ class AppTheme {
         ),
       ),
 
-      // Chip / Badge — unselected: dark text on white; selected: white on brand primary
+      // Chip / Badge — default Chip uses [labelStyle] (must stay dark).
+      // Selected ChoiceChip uses [secondaryLabelStyle] on [selectedColor].
       chipTheme: ChipThemeData(
         brightness: Brightness.light,
         backgroundColor: Colors.white,

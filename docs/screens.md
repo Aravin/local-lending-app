@@ -14,6 +14,7 @@
    - KYC renewal banner when verification is expired or due within 30 days.
    - Recent repayment timeline.
 4. **Apply for Loan (4-Step Flow)**:
+   - Requires KYC at least submitted; otherwise the borrower is sent to KYC first.
    - *Step 1*: Purpose (Business, Personal, Emergency, Education).
    - *Step 2*: Loan Amount (₹ Slider or input with min/max validation).
    - *Step 3*: Repayment Frequency (`daily`, `weekly`, `biweekly`, `monthly`), interest rate (12–48% p.a.), and tenure selection.
@@ -22,7 +23,7 @@
 5. **Loan Application Status**:
    - List of the signed-in borrower's requests with status chips (Pending, Approved, Rejected, Disbursed, Fund issue).
    - Timeline of Applied → Under review → Decision → Disbursement, plus rejection/counter-offer details.
-   - After funds are released, a 2-day window to report "Fund not received". EMI starts from the disbursement date if no issue is reported.
+   - After funds are released, borrower can **Mark as received** immediately, or has a 2-day window to report "Fund not received". EMI starts from the disbursement date once confirmed (or after the window if no issue is reported).
 6. **Loan Details & Installment Schedule**:
    - Progress bar (Paid installments / Total).
    - List of all upcoming and settled installments with status chips (Paid, Partial, Overdue, Upcoming).
@@ -43,9 +44,9 @@
 3. **Loan Application Approvals**:
    - Application queue, applicant profile, credit score and underwriting metrics.
    - Approve, Reject with reason, or Counter-offer.
-   - After approval, **Release funds** marks the loan disbursed. Borrower then has 2 days to report a fund issue; EMI starts from the disbursement date otherwise.
+   - After approval, **Release funds** marks the loan disbursed. Borrower can confirm receipt immediately or has 2 days to report a fund issue; EMI starts from the disbursement date once confirmed.
 4. **KYC Review**:
-   - Queue of submitted KYC packs. Approve or reject with a reason.
+   - All registered borrowers with KYC status. Filter to submitted packs to approve or reject with a reason.
    - Last completed date and annual expiry / renewal-due filter.
 5. **Reports & Insights**:
    - Visual charts (fl_chart) for loan disbursement trends, delinquency aging buckets (1-7 days, 8-30 days, 30+ days).

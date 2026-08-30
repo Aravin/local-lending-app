@@ -58,16 +58,31 @@ class LoanApplication extends Equatable {
     );
   }
 
+  bool canConfirmReceipt() {
+    return DisbursementPolicy.canConfirmReceipt(
+      status: status,
+      disbursementDate: disbursementDate,
+      issueReportedAt: disbursementIssueReportedAt,
+    );
+  }
+
   String trackingMessage([DateTime? now]) {
     final clock = now ?? DateTime.now();
     if (status == LoanStatus.disbursed && disbursementDate != null) {
-      final deadline = DisbursementPolicy.confirmationDeadline(
-        disbursementDate!,
-      );
+      final releasedOn = AppDateUtils.formatDisplay(disbursementDate!);
       if (canReportDisbursementIssue(clock)) {
-        return 'Funds were released on ${AppDateUtils.formatDisplay(disbursementDate!)}. Report if not received by ${AppDateUtils.formatDisplay(deadline.subtract(const Duration(days: 1)))}. EMI starts from the disbursement date if no issue is reported.';
+        final deadline = DisbursementPolicy.confirmationDeadline(
+          disbursementDate!,
+        );
+        final reportBy = AppDateUtils.formatDisplay(
+          deadline.subtract(const Duration(days: 1)),
+        );
+        return 'Funds were released on $releasedOn. Confirm receipt now, or report if not received by $reportBy. EMI starts from the disbursement date once confirmed.';
       }
-      return 'Confirmation window closed. EMI started from ${AppDateUtils.formatDisplay(disbursementDate!)}.';
+      if (canConfirmReceipt()) {
+        return 'Funds were released on $releasedOn. Confirm receipt to start EMI from the disbursement date.';
+      }
+      return 'Confirmation window closed. EMI started from $releasedOn.';
     }
     return status.borrowerMessage;
   }

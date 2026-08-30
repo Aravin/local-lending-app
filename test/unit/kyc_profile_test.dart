@@ -34,6 +34,25 @@ void main() {
     expect(kyc.canSubmit(DateTime(2025, 9, 1)), isFalse);
   });
 
+  test('allows lending after KYC is submitted or verified', () {
+    expect(profile(status: KycStatus.pending).allowsLending(), isFalse);
+    expect(profile(status: KycStatus.submitted).allowsLending(), isTrue);
+    expect(
+      profile(
+        status: KycStatus.verified,
+        verifiedAt: DateTime(2026, 1, 1),
+      ).allowsLending(DateTime(2026, 6, 1)),
+      isTrue,
+    );
+    expect(
+      profile(
+        status: KycStatus.verified,
+        verifiedAt: DateTime(2025, 1, 1),
+      ).allowsLending(DateTime(2026, 6, 1)),
+      isFalse,
+    );
+  });
+
   test('can explicitly clear a previous rejection reason', () {
     const rejected = KycProfile(
       userId: 'u1',

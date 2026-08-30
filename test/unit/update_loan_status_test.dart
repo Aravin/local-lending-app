@@ -68,11 +68,35 @@ void main() {
     expect(result.isLeft(), isTrue);
   });
 
+  test('allows confirming receipt as active', () async {
+    const params = UpdateLoanStatusParams(
+      applicationId: 'app-1',
+      status: LoanStatus.active,
+    );
+    final application = LoanApplication(
+      id: 'app-1',
+      borrowerId: 'b1',
+      borrowerName: 'Priya',
+      purpose: LoanPurpose.business,
+      requestedAmountRupees: 10000,
+      frequency: RepaymentFrequency.weekly,
+      tenure: 12,
+      requestedAt: DateTime(2026, 1, 1),
+      status: LoanStatus.active,
+    );
+    when(
+      () => repository.updateLoanStatus(params),
+    ).thenAnswer((_) async => Right(application));
+
+    final result = await useCase(params);
+    expect(result, Right(application));
+  });
+
   test('rejects unsupported status changes', () async {
     final result = await useCase(
       const UpdateLoanStatusParams(
         applicationId: 'app-1',
-        status: LoanStatus.active,
+        status: LoanStatus.closed,
       ),
     );
     expect(result.isLeft(), isTrue);

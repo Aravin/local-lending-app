@@ -30,7 +30,7 @@ enum LoanStatus {
       this == LoanStatus.fundIssue ||
       this == LoanStatus.overdue;
 
-  /// EMI collection is allowed only after the confirmation window.
+  /// EMI collection is allowed after receipt is confirmed (or the window closes).
   bool get isCollectable =>
       this == LoanStatus.active || this == LoanStatus.overdue;
 
@@ -45,7 +45,7 @@ enum LoanStatus {
       LoanStatus.approved => 'Approved. Disbursement will follow shortly.',
       LoanStatus.rejected => 'This request was not approved.',
       LoanStatus.disbursed =>
-        'Funds have been released. Confirm receipt within 2 days or report if not received. EMI starts from the disbursement date if no issue is reported.',
+        'Funds have been released. Confirm receipt now, or report if not received within 2 days. EMI starts from the disbursement date once confirmed (or after the window if no issue is reported).',
       LoanStatus.fundIssue =>
         'You reported that funds were not received. The lender is following up.',
       LoanStatus.active => 'Your loan is active. Track repayments from Home.',

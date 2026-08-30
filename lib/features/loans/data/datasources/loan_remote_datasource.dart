@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:local_lending_app/core/data/lending_mock_store.dart';
+import 'package:local_lending_app/features/admin/data/models/kyc_profile_model.dart';
+import 'package:local_lending_app/features/admin/domain/entities/kyc_profile.dart';
 import 'package:local_lending_app/features/loans/data/models/loan_application_model.dart';
 import 'package:local_lending_app/features/loans/data/models/loan_model.dart';
 import 'package:local_lending_app/features/loans/domain/entities/loan_application.dart';
@@ -115,6 +117,7 @@ class LoanFirestoreDataSource implements LoanRemoteDataSource {
 
   @override
   Future<LoanApplicationModel> applyForLoan(ApplyForLoanParams params) async {
+    await _requireVerifiedKyc(params.borrowerId);
     final created = LoanApplication(
       id: _applications.doc().id,
       borrowerId: params.borrowerId,
@@ -177,5 +180,20 @@ class LoanFirestoreDataSource implements LoanRemoteDataSource {
     return snapshot.docs
         .map((doc) => LoanModel.fromJson({...doc.data(), 'id': doc.id}))
         .toList();
+  }
+
+  Future<void> _requireVerifiedKyc(String userId) async {
+    final doc = await _firestore.collection('kyc').doc(userId).get();
+    final data = doc.data();
+    if (data == null) {
+      throw StateError(KycProfile.lendingRequirementMessage);
+    }
+    final profile = KycProfileModel.fromJson({
+      ...data,
+      'userId': userId,
+    }).toEntity().resolved();
+    if (!profile.allowsLending()) {
+      throw StateError(KycProfile.lendingRequirementMessage);
+    }
   }
 }

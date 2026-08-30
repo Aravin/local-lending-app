@@ -50,19 +50,27 @@ class _CustomersView extends StatelessWidget {
                       children: [
                         Expanded(
                           child: DropdownButtonFormField<RiskTier?>(
+                            isExpanded: true,
                             initialValue: state.riskTierFilter,
                             decoration: const InputDecoration(
                               labelText: 'Risk',
+                              isDense: true,
                             ),
                             items: [
                               const DropdownMenuItem(
                                 value: null,
-                                child: Text('All risk tiers'),
+                                child: Text(
+                                  'All',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                               ...RiskTier.values.map(
                                 (tier) => DropdownMenuItem(
                                   value: tier,
-                                  child: Text(tier.label),
+                                  child: Text(
+                                    tier.label,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ),
                             ],
@@ -74,17 +82,27 @@ class _CustomersView extends StatelessWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           child: DropdownButtonFormField<KycStatus?>(
+                            isExpanded: true,
                             initialValue: state.kycStatusFilter,
-                            decoration: const InputDecoration(labelText: 'KYC'),
+                            decoration: const InputDecoration(
+                              labelText: 'KYC',
+                              isDense: true,
+                            ),
                             items: [
                               const DropdownMenuItem(
                                 value: null,
-                                child: Text('All KYC statuses'),
+                                child: Text(
+                                  'All',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                               ...KycStatus.values.map(
                                 (status) => DropdownMenuItem(
                                   value: status,
-                                  child: Text(status.label),
+                                  child: Text(
+                                    status.label,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ),
                             ],
@@ -103,8 +121,11 @@ class _CustomersView extends StatelessWidget {
           Expanded(
             child: BlocBuilder<CustomersCubit, CustomersState>(
               builder: (context, state) {
-                if (state.loading) {
+                if (state.loading && state.customers.isEmpty) {
                   return const Center(child: CircularProgressIndicator());
+                }
+                if (state.errorMessage != null && state.customers.isEmpty) {
+                  return Center(child: Text(state.errorMessage!));
                 }
                 final customers = state.visibleCustomers;
                 if (customers.isEmpty) {
@@ -115,9 +136,13 @@ class _CustomersView extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final customer = customers[index];
                     return ListTile(
-                      title: Text(customer.name),
+                      title: Text(
+                        customer.name,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       subtitle: Text(
                         '${customer.activeLoansCount} active • ${(customer.lifetimeRepaymentRate * 100).toStringAsFixed(0)}% repaid',
+                        overflow: TextOverflow.ellipsis,
                       ),
                       trailing: StatusChip(
                         label: customer.riskTier.label,

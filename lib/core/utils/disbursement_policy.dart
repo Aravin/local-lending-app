@@ -4,8 +4,9 @@ import 'package:local_lending_app/features/loans/domain/entities/loan_status.dar
 ///
 /// Admin marks a loan as disbursed when money is sent. The borrower then has
 /// [confirmationWindowDays] calendar days (disbursement day + the next day) to
-/// report that funds were not received. If no issue is reported, EMI starts
-/// from the disbursement date.
+/// report that funds were not received, or they can confirm receipt immediately.
+/// If they confirm — or if no issue is reported before the window closes — EMI
+/// starts from the disbursement date.
 class DisbursementPolicy {
   DisbursementPolicy._();
 
@@ -46,6 +47,18 @@ class DisbursementPolicy {
     );
   }
 
+  /// Borrower (or admin on their behalf) can mark funds as received any time
+  /// the loan is still in the post-disbursal confirmation state.
+  static bool canConfirmReceipt({
+    required LoanStatus status,
+    required DateTime? disbursementDate,
+    DateTime? issueReportedAt,
+  }) {
+    if (status != LoanStatus.disbursed) return false;
+    if (issueReportedAt != null) return false;
+    return disbursementDate != null;
+  }
+
   static bool hasEmiStarted({
     required LoanStatus status,
     required DateTime? disbursementDate,
@@ -73,7 +86,7 @@ class DisbursementPolicy {
     final allowed = switch (from) {
       LoanStatus.pending => {LoanStatus.approved, LoanStatus.rejected},
       LoanStatus.approved => {LoanStatus.disbursed, LoanStatus.rejected},
-      LoanStatus.disbursed => {LoanStatus.fundIssue},
+      LoanStatus.disbursed => {LoanStatus.fundIssue, LoanStatus.active},
       LoanStatus.fundIssue => {LoanStatus.disbursed, LoanStatus.cancelled},
       _ => <LoanStatus>{},
     };

@@ -10,31 +10,31 @@ class LoanApplicationsState extends Equatable {
   const LoanApplicationsState({
     this.loading = true,
     this.applications = const [],
-    this.reportingApplicationId,
+    this.actingApplicationId,
     this.errorMessage,
     this.infoMessage,
   });
 
   final bool loading;
   final List<LoanApplication> applications;
-  final String? reportingApplicationId;
+  final String? actingApplicationId;
   final String? errorMessage;
   final String? infoMessage;
 
   LoanApplicationsState copyWith({
     bool? loading,
     List<LoanApplication>? applications,
-    String? reportingApplicationId,
-    bool clearReporting = false,
+    String? actingApplicationId,
+    bool clearActing = false,
     String? errorMessage,
     String? infoMessage,
   }) {
     return LoanApplicationsState(
       loading: loading ?? this.loading,
       applications: applications ?? this.applications,
-      reportingApplicationId: clearReporting
+      actingApplicationId: clearActing
           ? null
-          : reportingApplicationId ?? this.reportingApplicationId,
+          : actingApplicationId ?? this.actingApplicationId,
       errorMessage: errorMessage,
       infoMessage: infoMessage,
     );
@@ -44,7 +44,7 @@ class LoanApplicationsState extends Equatable {
   List<Object?> get props => [
     loading,
     applications,
-    reportingApplicationId,
+    actingApplicationId,
     errorMessage,
     infoMessage,
   ];
@@ -66,7 +66,7 @@ class LoanApplicationsCubit extends Cubit<LoanApplicationsState> {
     emit(
       state.copyWith(
         loading: true,
-        clearReporting: true,
+        clearActing: true,
         infoMessage: infoMessage,
       ),
     );
@@ -76,7 +76,7 @@ class LoanApplicationsCubit extends Cubit<LoanApplicationsState> {
       (failure) => emit(
         state.copyWith(
           loading: false,
-          clearReporting: true,
+          clearActing: true,
           errorMessage: failure.message,
         ),
       ),
@@ -84,10 +84,34 @@ class LoanApplicationsCubit extends Cubit<LoanApplicationsState> {
         state.copyWith(
           loading: false,
           applications: applications,
-          clearReporting: true,
+          clearActing: true,
           infoMessage: infoMessage,
         ),
       ),
+    );
+  }
+
+  Future<void> confirmReceipt(String applicationId) async {
+    emit(state.copyWith(actingApplicationId: applicationId));
+    final result = await updateLoanStatus(
+      UpdateLoanStatusParams(
+        applicationId: applicationId,
+        status: LoanStatus.active,
+      ),
+    );
+    if (isClosed) return;
+    result.fold(
+      (failure) => emit(
+        state.copyWith(clearActing: true, errorMessage: failure.message),
+      ),
+      (_) {
+        final borrowerId = _borrowerId;
+        if (borrowerId == null) return;
+        load(
+          borrowerId,
+          infoMessage: 'Funds confirmed. Your loan is now active.',
+        );
+      },
     );
   }
 
@@ -95,7 +119,7 @@ class LoanApplicationsCubit extends Cubit<LoanApplicationsState> {
     required String applicationId,
     required String reason,
   }) async {
-    emit(state.copyWith(reportingApplicationId: applicationId));
+    emit(state.copyWith(actingApplicationId: applicationId));
     final result = await updateLoanStatus(
       UpdateLoanStatusParams(
         applicationId: applicationId,
@@ -106,7 +130,7 @@ class LoanApplicationsCubit extends Cubit<LoanApplicationsState> {
     if (isClosed) return;
     result.fold(
       (failure) => emit(
-        state.copyWith(clearReporting: true, errorMessage: failure.message),
+        state.copyWith(clearActing: true, errorMessage: failure.message),
       ),
       (_) {
         final borrowerId = _borrowerId;

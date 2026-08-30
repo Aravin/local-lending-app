@@ -5,6 +5,7 @@ import 'package:local_lending_app/features/admin/presentation/pages/create_loan_
 import 'package:local_lending_app/features/admin/presentation/pages/loan_approvals_page.dart';
 import 'package:local_lending_app/flavors/clients/local_lending_hub.dart';
 import 'package:local_lending_app/flavors/flavor_config.dart';
+import 'package:local_lending_app/shared/widgets/app_choice_chip.dart';
 import 'package:local_lending_app/theme/app_theme.dart';
 
 Future<void> _pumpApprovals(WidgetTester tester) async {
@@ -36,6 +37,8 @@ void main() {
     expect(find.text('Counter-offer'), findsWidgets);
     expect(find.text('Awaiting fund release'), findsOneWidget);
     expect(find.text('Release funds'), findsWidgets);
+    expect(find.text('All'), findsOneWidget);
+    expect(find.byType(AppChoiceChip), findsWidgets);
   });
 
   testWidgets('Approve removes the request from the pending queue', (
@@ -69,14 +72,21 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(
       find.text(
-        'Funds marked as released. Borrower has 2 days to report a problem.',
+        'Funds marked as released. Borrower can confirm receipt now or report a problem within 2 days.',
       ),
       findsOneWidget,
     );
     expect(find.text('Confirmation window'), findsOneWidget);
   });
 
-  testWidgets('Create Loan for User page loads borrowers', (tester) async {
+  testWidgets('Create Loan for User page can search and select a borrower', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     await tester.pumpWidget(
       MaterialApp(theme: AppTheme.build(), home: const CreateLoanPage()),
     );
@@ -85,6 +95,33 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Create Loan for User'), findsOneWidget);
+    expect(find.text('Select a borrower'), findsOneWidget);
+    expect(find.text('Repayment frequency'), findsOneWidget);
+    expect(find.text('Daily'), findsOneWidget);
+    expect(find.text('Weekly'), findsOneWidget);
+    expect(find.text('Biweekly'), findsOneWidget);
+    expect(find.text('Monthly'), findsOneWidget);
+    expect(find.text('EMI breakdown'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('borrower-field')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Priya Sharma'), findsOneWidget);
+    expect(find.text('Anjali Devi'), findsOneWidget);
+    expect(find.text('Ramesh Kumar'), findsNothing);
+
+    await tester.enterText(
+      find.byKey(const Key('borrower-search-field')),
+      'Anjali',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Priya Sharma'), findsNothing);
+    await tester.tap(find.text('Anjali Devi'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Anjali Devi'), findsOneWidget);
+    expect(find.textContaining('+91 98765 33303'), findsOneWidget);
     expect(find.text('Disburse loan'), findsOneWidget);
   });
 }

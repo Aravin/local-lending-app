@@ -283,6 +283,36 @@ class AdminFirestoreDataSource implements AdminRemoteDataSource {
         return model;
       }
 
+      if (params.status == LoanStatus.active) {
+        if (!current.canConfirmReceipt()) {
+          throw StateError(
+            'Funds cannot be confirmed for ${params.applicationId}',
+          );
+        }
+        final updated = current.copyWith(status: LoanStatus.active);
+        final model = LoanApplicationModel.fromEntity(updated);
+        DocumentReference<Map<String, dynamic>>? loanRef;
+        DocumentSnapshot<Map<String, dynamic>>? loanSnap;
+        if (current.loanId != null) {
+          loanRef = _firestore.collection('loans').doc(current.loanId);
+          loanSnap = await transaction.get(loanRef);
+        }
+        transaction.set(applicationRef, model.toJson());
+        if (loanRef != null && loanSnap != null && loanSnap.exists) {
+          final loan = LoanModel.fromJson({
+            ...loanSnap.data()!,
+            'id': loanSnap.id,
+          }).toEntity();
+          transaction.set(
+            loanRef,
+            LoanModel.fromEntity(
+              loan.copyWith(status: LoanStatus.active),
+            ).toJson(),
+          );
+        }
+        return model;
+      }
+
       if (params.status == LoanStatus.disbursed) {
         final disbursementDate = params.disbursementDate ?? DateTime.now();
         final loanId =
@@ -401,6 +431,10 @@ class AdminFirestoreDataSource implements AdminRemoteDataSource {
 
   @override
   Future<LoanModel> createLoanForUser(CreateLoanParams params) async {
+    final kyc = await getKycProfile(params.borrowerId);
+    if (!kyc.toEntity().resolved().allowsLending()) {
+      throw StateError(KycProfile.lendingRequirementMessage);
+    }
     final ref = _firestore.collection('loans').doc();
     final loan = _buildLoan(
       id: ref.id,
@@ -499,22 +533,85 @@ class AdminFirestoreDataSource implements AdminRemoteDataSource {
 
   @override
   Future<KycProfileModel> getKycProfile(String userId) async {
-    final doc = await _firestore.collection('kyc').doc(userId).get();
-    final data = doc.data();
-    if (data == null) {
-      return KycProfileModel(userId: userId, fullName: '', status: 'pending');
+    final kycFuture = _firestore.collection('kyc').doc(userId).get();
+    final customerFuture = _firestore.collection('customers').doc(userId).get();
+    final kycDoc = await kycFuture;
+    final customerDoc = await customerFuture;
+    final kycData = kycDoc.data();
+    if (kycData != null) {
+      return KycProfileModel.fromJson({...kycData, 'userId': userId});
     }
-    return KycProfileModel.fromJson({...data, 'userId': userId});
+    return _kycFromCustomer(userId, customerDoc.data());
   }
 
   @override
   Future<List<KycProfileModel>> getKycProfiles() async {
-    final snapshot = await _firestore.collection('kyc').get();
-    return snapshot.docs
-        .map(
-          (doc) => KycProfileModel.fromJson({...doc.data(), 'userId': doc.id}),
-        )
-        .toList();
+    final kycFuture = _firestore.collection('kyc').get();
+    final customersFuture = _firestore.collection('customers').get();
+    final kycSnapshot = await kycFuture;
+    final customerSnapshot = await customersFuture;
+    final byUserId = <String, KycProfileModel>{};
+    for (final doc in kycSnapshot.docs) {
+      final parsed = _tryParseKyc(doc.id, doc.data());
+      if (parsed != null) {
+        byUserId[doc.id] = parsed;
+      }
+    }
+    for (final doc in customerSnapshot.docs) {
+      if (byUserId.containsKey(doc.id)) continue;
+      byUserId[doc.id] = _kycFromCustomer(doc.id, doc.data());
+    }
+    final profiles = byUserId.values.toList()
+      ..sort((left, right) {
+        final rank = _kycQueueRank(
+          left.status,
+        ).compareTo(_kycQueueRank(right.status));
+        if (rank != 0) return rank;
+        return left.fullName.toLowerCase().compareTo(
+          right.fullName.toLowerCase(),
+        );
+      });
+    return profiles;
+  }
+
+  KycProfileModel? _tryParseKyc(String userId, Map<String, dynamic> data) {
+    try {
+      return KycProfileModel.fromJson({...data, 'userId': userId});
+    } catch (_) {
+      return null;
+    }
+  }
+
+  KycProfileModel _kycFromCustomer(String userId, Map<String, dynamic>? data) {
+    if (data == null) {
+      return KycProfileModel(userId: userId, fullName: '', status: 'pending');
+    }
+    try {
+      final customer = CustomerProfileModel.fromJson({...data, 'id': userId});
+      return KycProfileModel(
+        userId: customer.id,
+        fullName: customer.name,
+        status: customer.kycStatus,
+        address: customer.address,
+      );
+    } catch (_) {
+      return KycProfileModel(
+        userId: userId,
+        fullName: data['name'] as String? ?? '',
+        status: data['kycStatus'] as String? ?? 'pending',
+        address: data['address'] as String?,
+      );
+    }
+  }
+
+  int _kycQueueRank(String status) {
+    return switch (status) {
+      'submitted' => 0,
+      'expired' => 1,
+      'pending' => 2,
+      'rejected' => 3,
+      _ => 4,
+    };
   }
 
   @override

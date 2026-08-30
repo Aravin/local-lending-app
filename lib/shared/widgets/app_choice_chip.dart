@@ -18,8 +18,15 @@ class AppChoiceChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final primary = FlavorConfig.primaryColor;
+    final labelColor = selected ? Colors.white : scheme.onSurface;
     return ChoiceChip(
-      label: Text(label),
+      label: Text(
+        label,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+          color: labelColor,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+        ),
+      ),
       selected: selected,
       onSelected: onSelected,
       showCheckmark: false,
@@ -27,8 +34,14 @@ class AppChoiceChip extends StatelessWidget {
       backgroundColor: scheme.surfaceContainerLowest,
       disabledColor: scheme.surfaceContainerLowest,
       surfaceTintColor: Colors.transparent,
+      color: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
+          return primary;
+        }
+        return scheme.surfaceContainerLowest;
+      }),
       labelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-        color: selected ? Colors.white : scheme.onSurface,
+        color: labelColor,
         fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
       ),
       side: BorderSide(color: selected ? primary : scheme.outline),

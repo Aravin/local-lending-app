@@ -40,6 +40,7 @@ class UpdateLoanStatus {
       LoanStatus.rejected,
       LoanStatus.disbursed,
       LoanStatus.fundIssue,
+      LoanStatus.active,
     };
     if (!allowed.contains(params.status)) {
       return Future.value(

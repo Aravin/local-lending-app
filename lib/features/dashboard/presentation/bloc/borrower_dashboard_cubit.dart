@@ -2,8 +2,10 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:local_lending_app/features/admin/domain/entities/kyc_profile.dart';
 import 'package:local_lending_app/features/admin/domain/repositories/admin_repository.dart';
+import 'package:local_lending_app/features/admin/domain/usecases/update_loan_status.dart';
 import 'package:local_lending_app/features/loans/domain/entities/loan.dart';
 import 'package:local_lending_app/features/loans/domain/entities/loan_application.dart';
+import 'package:local_lending_app/features/loans/domain/entities/loan_status.dart';
 import 'package:local_lending_app/features/loans/domain/usecases/get_borrower_applications.dart';
 import 'package:local_lending_app/features/loans/domain/usecases/get_borrower_loans.dart';
 import 'package:local_lending_app/features/repayments/domain/entities/repayment_record.dart';
@@ -19,6 +21,8 @@ class BorrowerDashboardState extends Equatable {
     this.recentRepayments = const [],
     this.kyc,
     this.errorMessage,
+    this.infoMessage,
+    this.acting = false,
   });
 
   final DashboardStatus status;
@@ -27,6 +31,8 @@ class BorrowerDashboardState extends Equatable {
   final List<RepaymentRecord> recentRepayments;
   final KycProfile? kyc;
   final String? errorMessage;
+  final String? infoMessage;
+  final bool acting;
 
   Loan? get activeLoan {
     for (final loan in loans) {
@@ -42,6 +48,8 @@ class BorrowerDashboardState extends Equatable {
     List<RepaymentRecord>? recentRepayments,
     KycProfile? kyc,
     String? errorMessage,
+    String? infoMessage,
+    bool? acting,
   }) {
     return BorrowerDashboardState(
       status: status ?? this.status,
@@ -50,6 +58,8 @@ class BorrowerDashboardState extends Equatable {
       recentRepayments: recentRepayments ?? this.recentRepayments,
       kyc: kyc ?? this.kyc,
       errorMessage: errorMessage,
+      infoMessage: infoMessage,
+      acting: acting ?? this.acting,
     );
   }
 
@@ -61,6 +71,8 @@ class BorrowerDashboardState extends Equatable {
     recentRepayments,
     kyc,
     errorMessage,
+    infoMessage,
+    acting,
   ];
 }
 
@@ -70,11 +82,13 @@ class BorrowerDashboardCubit extends Cubit<BorrowerDashboardState> {
     required GetBorrowerApplications getBorrowerApplications,
     required GetRepaymentHistory getRepaymentHistory,
     required AdminRepository adminRepository,
+    required UpdateLoanStatus updateLoanStatus,
   }) : this._(
          getBorrowerLoans,
          getBorrowerApplications,
          getRepaymentHistory,
          adminRepository,
+         updateLoanStatus,
        );
 
   BorrowerDashboardCubit._(
@@ -82,15 +96,26 @@ class BorrowerDashboardCubit extends Cubit<BorrowerDashboardState> {
     this._getBorrowerApplications,
     this._getRepaymentHistory,
     this._adminRepository,
+    this._updateLoanStatus,
   ) : super(const BorrowerDashboardState());
 
   final GetBorrowerLoans _getBorrowerLoans;
   final GetBorrowerApplications _getBorrowerApplications;
   final GetRepaymentHistory _getRepaymentHistory;
   final AdminRepository _adminRepository;
+  final UpdateLoanStatus _updateLoanStatus;
 
-  Future<void> load(String borrowerId) async {
-    emit(state.copyWith(status: DashboardStatus.loading));
+  String? _borrowerId;
+
+  Future<void> load(String borrowerId, {String? infoMessage}) async {
+    _borrowerId = borrowerId;
+    emit(
+      state.copyWith(
+        status: DashboardStatus.loading,
+        acting: false,
+        infoMessage: infoMessage,
+      ),
+    );
     final loansResult = await _getBorrowerLoans(borrowerId);
     await loansResult.fold(
       (failure) async {
@@ -120,9 +145,49 @@ class BorrowerDashboardCubit extends Cubit<BorrowerDashboardState> {
             applications: applications,
             recentRepayments: history.take(6).toList(),
             kyc: kyc,
+            acting: false,
+            infoMessage: infoMessage,
           ),
         );
       },
     );
+  }
+
+  Future<void> confirmReceipt(Loan loan) async {
+    final applicationId = _applicationIdFor(loan);
+    if (applicationId == null) {
+      emit(
+        state.copyWith(errorMessage: 'Unable to confirm this disbursement.'),
+      );
+      return;
+    }
+    emit(state.copyWith(acting: true));
+    final result = await _updateLoanStatus(
+      UpdateLoanStatusParams(
+        applicationId: applicationId,
+        status: LoanStatus.active,
+      ),
+    );
+    if (isClosed) return;
+    result.fold(
+      (failure) =>
+          emit(state.copyWith(acting: false, errorMessage: failure.message)),
+      (_) {
+        final borrowerId = _borrowerId;
+        if (borrowerId == null) return;
+        load(
+          borrowerId,
+          infoMessage: 'Funds confirmed. Your loan is now active.',
+        );
+      },
+    );
+  }
+
+  String? _applicationIdFor(Loan loan) {
+    if (loan.applicationId != null) return loan.applicationId;
+    for (final application in state.applications) {
+      if (application.loanId == loan.id) return application.id;
+    }
+    return null;
   }
 }

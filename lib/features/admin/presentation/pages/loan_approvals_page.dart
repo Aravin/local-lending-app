@@ -8,6 +8,7 @@ import 'package:local_lending_app/features/admin/domain/repositories/admin_repos
 import 'package:local_lending_app/features/admin/presentation/bloc/loan_approvals_cubit.dart';
 import 'package:local_lending_app/features/loans/domain/entities/loan_application.dart';
 import 'package:local_lending_app/features/loans/domain/entities/loan_status.dart';
+import 'package:local_lending_app/shared/widgets/app_choice_chip.dart';
 import 'package:local_lending_app/shared/widgets/status_chip.dart';
 
 class LoanApprovalsPage extends StatelessWidget {
@@ -63,8 +64,8 @@ class _ApprovalsView extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  FilterChip(
-                    label: const Text('All'),
+                  AppChoiceChip(
+                    label: 'All',
                     selected: state.frequencyFilter == null,
                     onSelected: (_) => context
                         .read<LoanApprovalsCubit>()
@@ -72,8 +73,8 @@ class _ApprovalsView extends StatelessWidget {
                   ),
                   for (final frequency
                       in pending.map((e) => e.frequency).toSet())
-                    FilterChip(
-                      label: Text(frequency.label),
+                    AppChoiceChip(
+                      label: frequency.label,
                       selected: state.frequencyFilter == frequency,
                       onSelected: (_) => context
                           .read<LoanApprovalsCubit>()
@@ -248,7 +249,7 @@ class _ApplicationCard extends StatelessWidget {
             if (application.status == LoanStatus.disbursed &&
                 application.disbursementDate != null)
               Text(
-                'Borrower can report a fund issue until ${AppDateUtils.formatDisplay(DisbursementPolicy.confirmationDeadline(application.disbursementDate!).subtract(const Duration(days: 1)))}. EMI starts from the disbursement date if no issue is reported.',
+                'Borrower can confirm receipt now, or report a fund issue until ${AppDateUtils.formatDisplay(DisbursementPolicy.confirmationDeadline(application.disbursementDate!).subtract(const Duration(days: 1)))}. EMI starts from the disbursement date once confirmed.',
               ),
             if (application.disbursementIssueReason != null)
               Text('Issue: ${application.disbursementIssueReason}'),

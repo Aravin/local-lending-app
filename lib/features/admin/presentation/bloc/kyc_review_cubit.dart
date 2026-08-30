@@ -10,7 +10,7 @@ class KycReviewState extends Equatable {
   const KycReviewState({
     this.loading = true,
     this.profiles = const [],
-    this.filter = KycStatus.submitted,
+    this.filter,
     this.errorMessage,
     this.infoMessage,
   });

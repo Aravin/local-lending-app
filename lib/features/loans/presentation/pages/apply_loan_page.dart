@@ -17,8 +17,10 @@ class ApplyLoanPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.read<AuthCubit>().state;
+    final userId = auth is Authenticated ? auth.user.id : '';
     return BlocProvider(
-      create: (_) => getIt<ApplyLoanCubit>(),
+      create: (_) => getIt<ApplyLoanCubit>()..loadKyc(userId),
       child: const _ApplyLoanView(),
     );
   }
@@ -44,6 +46,37 @@ class _ApplyLoanView extends StatelessWidget {
         }
       },
       builder: (context, state) {
+        if (state.checkingKyc) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Apply for Loan')),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (!state.kycVerified) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Apply for Loan')),
+            body: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.verified_user_outlined, size: 48),
+                  const SizedBox(height: 16),
+                  Text(
+                    state.errorMessage ??
+                        'Submit KYC documents before applying for a loan.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: () => context.go('/profile/kyc'),
+                    child: const Text('Complete KYC'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
         return Scaffold(
           appBar: AppBar(
             title: Text('Apply for Loan • Step ${state.step + 1} of 4'),

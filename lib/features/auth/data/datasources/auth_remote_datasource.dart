@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:local_lending_app/features/auth/domain/entities/auth_user.dart';
@@ -40,7 +41,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       throw Exception('Failed to retrieve user from Firebase Auth.');
     }
 
-    return _toAuthUser(user, refreshClaims: true);
+    final authUser = await _toAuthUser(user, refreshClaims: true);
+    await _ensureBorrowerCustomer(authUser);
+    return authUser;
   }
 
   @override
@@ -53,7 +56,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     final currentFbUser = _firebaseAuth.currentUser;
     if (currentFbUser == null) return null;
 
-    return _toAuthUser(currentFbUser);
+    final authUser = await _toAuthUser(currentFbUser);
+    await _ensureBorrowerCustomer(authUser);
+    return authUser;
   }
 
   @override
@@ -79,5 +84,32 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       phoneNumber: user.phoneNumber,
       avatarUrl: user.photoURL,
     );
+  }
+
+  /// Google Sign-In only creates an Auth user. Admin KYC/customers screens
+  /// read Firestore, so borrowers need a pending customer profile on first open.
+  Future<void> _ensureBorrowerCustomer(AuthUser user) async {
+    if (user.role.isAdmin) return;
+    try {
+      final ref = FirebaseFirestore.instance
+          .collection('customers')
+          .doc(user.id);
+      final snapshot = await ref.get();
+      if (snapshot.exists) return;
+      await ref.set({
+        'id': user.id,
+        'name': user.name,
+        'phone': user.phoneNumber ?? '',
+        'email': user.email,
+        'activeLoansCount': 0,
+        'lifetimeRepaymentRate': 1,
+        'riskTier': 'low',
+        'kycStatus': 'pending',
+        'outstandingRupees': 0,
+        'address': '',
+      });
+    } catch (_) {
+      // Sign-in must still succeed if the profile bootstrap fails.
+    }
   }
 }

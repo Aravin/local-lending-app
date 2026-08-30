@@ -1,6 +1,6 @@
 name: local_lending_app
 description: White-label digital lending app.
-version: 1.4.0+5
+version: 1.5.0+6
 publish_to: "none"
 
 environment:

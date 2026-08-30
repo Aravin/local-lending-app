@@ -99,6 +99,30 @@ void main() {
     );
   });
 
+  test('borrower can confirm receipt while disbursed', () {
+    expect(
+      DisbursementPolicy.canConfirmReceipt(
+        status: LoanStatus.disbursed,
+        disbursementDate: disbursedOn,
+      ),
+      isTrue,
+    );
+    expect(
+      DisbursementPolicy.canConfirmReceipt(
+        status: LoanStatus.fundIssue,
+        disbursementDate: disbursedOn,
+      ),
+      isFalse,
+    );
+    expect(
+      DisbursementPolicy.isAllowedTransition(
+        LoanStatus.disbursed,
+        LoanStatus.active,
+      ),
+      isTrue,
+    );
+  });
+
   test('allows approve then disburse then fund issue', () {
     expect(
       DisbursementPolicy.isAllowedTransition(

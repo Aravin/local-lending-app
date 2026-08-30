@@ -74,6 +74,16 @@ class KycProfile extends Equatable {
     return current.needsBorrowerAction || isExpiringSoon(now);
   }
 
+  /// Lending requires KYC at least submitted. Pending, rejected, and expired
+  /// packs must be completed again first.
+  bool allowsLending([DateTime? now]) {
+    final current = effectiveStatus(now);
+    return current == KycStatus.submitted || current == KycStatus.verified;
+  }
+
+  static const lendingRequirementMessage =
+      'Submit KYC documents before a loan can be issued.';
+
   @override
   List<Object?> get props => [
     userId,

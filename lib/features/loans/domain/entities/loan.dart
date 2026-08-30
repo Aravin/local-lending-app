@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:local_lending_app/core/utils/disbursement_policy.dart';
 import 'package:local_lending_app/domain/entities/repayment_frequency.dart';
 import 'package:local_lending_app/domain/entities/repayment_installment.dart';
 import 'package:local_lending_app/domain/entities/repayment_schedule.dart';
@@ -56,6 +57,23 @@ class Loan extends Equatable {
   RepaymentInstallment? get nextDue => schedule.nextDue;
 
   bool get isFullyPaid => schedule.isCompleted;
+
+  bool canConfirmReceipt() {
+    return DisbursementPolicy.canConfirmReceipt(
+      status: status,
+      disbursementDate: disbursementDate,
+      issueReportedAt: disbursementIssueReportedAt,
+    );
+  }
+
+  bool canReportDisbursementIssue([DateTime? now]) {
+    return DisbursementPolicy.canReportIssue(
+      status: status,
+      disbursementDate: disbursementDate,
+      now: now ?? DateTime.now(),
+      issueReportedAt: disbursementIssueReportedAt,
+    );
+  }
 
   @override
   List<Object?> get props => [

@@ -71,7 +71,9 @@ class CustomersCubit extends Cubit<CustomersState> {
 
   Future<void> load({String? query}) async {
     final requestedQuery = query ?? state.query;
-    emit(state.copyWith(loading: true, query: requestedQuery));
+    emit(
+      state.copyWith(loading: state.customers.isEmpty, query: requestedQuery),
+    );
     final result = await _getCustomers(query: requestedQuery);
     if (isClosed || state.query != requestedQuery) return;
     result.fold(

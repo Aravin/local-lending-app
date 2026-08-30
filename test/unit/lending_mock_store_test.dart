@@ -1,11 +1,75 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:local_lending_app/core/data/lending_mock_store.dart';
+import 'package:local_lending_app/domain/entities/repayment_frequency.dart';
 import 'package:local_lending_app/domain/entities/repayment_installment.dart';
+import 'package:local_lending_app/features/admin/domain/entities/risk_tier.dart';
 import 'package:local_lending_app/features/admin/domain/repositories/admin_repository.dart';
+import 'package:local_lending_app/features/loans/domain/entities/loan_application.dart';
+import 'package:local_lending_app/features/loans/domain/entities/loan_purpose.dart';
 import 'package:local_lending_app/features/loans/domain/entities/loan_status.dart';
 import 'package:local_lending_app/features/repayments/domain/entities/payment_method.dart';
 
 void main() {
+  test('registered borrowers without a kyc pack still appear in review', () {
+    final store = LendingMockStore();
+    store.ensureBorrowerProfile(
+      userId: 'google-user-fresh',
+      name: 'New Borrower',
+      email: 'new@example.com',
+    );
+
+    final profiles = store.listKyc();
+    expect(
+      profiles.any((profile) => profile.userId == 'google-user-fresh'),
+      isTrue,
+    );
+    expect(
+      profiles
+          .firstWhere((profile) => profile.userId == 'google-user-fresh')
+          .status,
+      KycStatus.pending,
+    );
+  });
+
+  test('loan apply requires submitted KYC', () {
+    final store = LendingMockStore();
+    store.ensureBorrowerProfile(
+      userId: 'google-user-fresh',
+      name: 'New Borrower',
+      email: 'new@example.com',
+    );
+
+    expect(
+      () => store.applyForLoan(
+        const ApplyForLoanParams(
+          borrowerId: 'google-user-fresh',
+          borrowerName: 'New Borrower',
+          purpose: LoanPurpose.personal,
+          amountRupees: 5000,
+          frequency: RepaymentFrequency.weekly,
+          tenure: 8,
+        ),
+      ),
+      throwsStateError,
+    );
+
+    expect(
+      store
+          .applyForLoan(
+            const ApplyForLoanParams(
+              borrowerId: 'cust-anjali',
+              borrowerName: 'Anjali Devi',
+              purpose: LoanPurpose.education,
+              amountRupees: 5000,
+              frequency: RepaymentFrequency.monthly,
+              tenure: 4,
+            ),
+          )
+          .borrowerId,
+      'cust-anjali',
+    );
+  });
+
   test('new borrower ids do not inherit demo loans', () {
     final store = LendingMockStore();
 
@@ -184,6 +248,31 @@ void main() {
     expect(reported.disbursementIssueReason, 'Funds not received');
     final loan = store.loans.firstWhere((item) => item.id == reported.loanId);
     expect(loan.status, LoanStatus.fundIssue);
+  });
+
+  test('borrower can confirm receipt without waiting for the window', () {
+    final store = LendingMockStore();
+    store.updateApplication(
+      UpdateLoanStatusParams(
+        applicationId: 'app-approved-1',
+        status: LoanStatus.disbursed,
+        disbursementDate: DateTime.now(),
+      ),
+    );
+
+    final confirmed = store.updateApplication(
+      const UpdateLoanStatusParams(
+        applicationId: 'app-approved-1',
+        status: LoanStatus.active,
+      ),
+    );
+
+    expect(confirmed.status, LoanStatus.active);
+    expect(confirmed.canConfirmReceipt(), isFalse);
+    expect(confirmed.canReportDisbursementIssue(), isFalse);
+    final loan = store.getLoan(confirmed.loanId!);
+    expect(loan.status, LoanStatus.active);
+    expect(loan.status.isCollectable, isTrue);
   });
 
   test('EMI becomes active after the confirmation window', () {

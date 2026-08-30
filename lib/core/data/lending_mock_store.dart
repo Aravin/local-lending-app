@@ -349,6 +349,7 @@ class LendingMockStore {
   }
 
   LoanApplication applyForLoan(ApplyForLoanParams params) {
+    _requireVerifiedKyc(params.borrowerId);
     final application = LoanApplication(
       id: _nextId('app'),
       borrowerId: params.borrowerId,
@@ -381,7 +382,7 @@ class LendingMockStore {
     }
     if (!loans[index].status.isCollectable) {
       throw StateError(
-        'EMI has not started for loan $loanId. Wait for the confirmation window or resolve the fund issue.',
+        'EMI has not started for loan $loanId. Confirm receipt, wait for the confirmation window, or resolve the fund issue.',
       );
     }
     final paidAt = DateTime.now();
@@ -445,6 +446,19 @@ class LendingMockStore {
         issueReportedAt: reportedAt,
         issueReason: params.issueReason,
       );
+      return application;
+    }
+
+    if (params.status == LoanStatus.active) {
+      if (!current.canConfirmReceipt()) {
+        throw StateError(
+          'Funds cannot be confirmed for ${params.applicationId}',
+        );
+      }
+      final application = current.copyWith(status: LoanStatus.active);
+      applications[index] = application;
+      _updateLinkedLoan(application, status: LoanStatus.active);
+      _refreshCustomerAggregates();
       return application;
     }
 
@@ -557,6 +571,7 @@ class LendingMockStore {
   }
 
   Loan createLoan(CreateLoanParams params) {
+    _requireVerifiedKyc(params.borrowerId);
     final loan = _disburse(
       borrowerId: params.borrowerId,
       borrowerName: params.borrowerName,
@@ -768,14 +783,93 @@ class LendingMockStore {
     return points;
   }
 
+  void _requireVerifiedKyc(String userId) {
+    if (!getKyc(userId).allowsLending()) {
+      throw StateError(KycProfile.lendingRequirementMessage);
+    }
+  }
+
   KycProfile getKyc(String userId) {
-    return (kycByUserId[userId] ??
-            KycProfile(userId: userId, fullName: '', status: KycStatus.pending))
-        .resolved();
+    final existing = kycByUserId[userId];
+    if (existing != null) return existing.resolved();
+    CustomerProfile? customer;
+    for (final item in customers) {
+      if (item.id == userId) {
+        customer = item;
+        break;
+      }
+    }
+    return KycProfile(
+      userId: userId,
+      fullName: customer?.name ?? '',
+      status: customer?.kycStatus ?? KycStatus.pending,
+      address: customer?.address,
+    ).resolved();
   }
 
   List<KycProfile> listKyc() {
-    return kycByUserId.values.map((profile) => profile.resolved()).toList();
+    final byUserId = <String, KycProfile>{
+      for (final profile in kycByUserId.values)
+        profile.userId: profile.resolved(),
+    };
+    for (final customer in customers) {
+      byUserId.putIfAbsent(
+        customer.id,
+        () => KycProfile(
+          userId: customer.id,
+          fullName: customer.name,
+          status: customer.kycStatus,
+          address: customer.address,
+        ).resolved(),
+      );
+    }
+    final profiles = byUserId.values.toList()
+      ..sort((left, right) {
+        final rank = _kycQueueRank(
+          left.status,
+        ).compareTo(_kycQueueRank(right.status));
+        if (rank != 0) return rank;
+        return left.fullName.toLowerCase().compareTo(
+          right.fullName.toLowerCase(),
+        );
+      });
+    return profiles;
+  }
+
+  void ensureBorrowerProfile({
+    required String userId,
+    required String name,
+    required String email,
+    String? phone,
+  }) {
+    if (customers.any((customer) => customer.id == userId)) return;
+    customers.add(
+      CustomerProfile(
+        id: userId,
+        name: name,
+        phone: phone ?? '',
+        email: email,
+        activeLoansCount: 0,
+        lifetimeRepaymentRate: 1,
+        riskTier: RiskTier.low,
+        kycStatus: KycStatus.pending,
+      ),
+    );
+    kycByUserId.putIfAbsent(
+      userId,
+      () =>
+          KycProfile(userId: userId, fullName: name, status: KycStatus.pending),
+    );
+  }
+
+  int _kycQueueRank(KycStatus status) {
+    return switch (status) {
+      KycStatus.submitted => 0,
+      KycStatus.expired => 1,
+      KycStatus.pending => 2,
+      KycStatus.rejected => 3,
+      KycStatus.verified => 4,
+    };
   }
 
   KycProfile saveKyc(KycProfile profile) {

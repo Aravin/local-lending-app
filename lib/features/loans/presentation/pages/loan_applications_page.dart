@@ -98,6 +98,9 @@ class _ApplicationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final acting =
+        context.watch<LoanApplicationsCubit>().state.actingApplicationId ==
+        application.id;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -142,12 +145,30 @@ class _ApplicationCard extends StatelessWidget {
                 'Counter-offer ${CurrencyFormatter.format(application.counterOfferPrincipalRupees!)}',
               ),
             ],
-            if (application.canReportDisbursementIssue()) ...[
+            if (application.canConfirmReceipt() ||
+                application.canReportDisbursementIssue()) ...[
               const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () => _reportIssue(context, application),
-                icon: const Icon(Icons.report_gmailerrorred_outlined),
-                label: const Text('Fund not received'),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (application.canConfirmReceipt())
+                    FilledButton.icon(
+                      onPressed: acting
+                          ? null
+                          : () => _confirmReceipt(context, application),
+                      icon: const Icon(Icons.check_circle_outline),
+                      label: const Text('Mark as received'),
+                    ),
+                  if (application.canReportDisbursementIssue())
+                    OutlinedButton.icon(
+                      onPressed: acting
+                          ? null
+                          : () => _reportIssue(context, application),
+                      icon: const Icon(Icons.report_gmailerrorred_outlined),
+                      label: const Text('Fund not received'),
+                    ),
+                ],
               ),
             ],
             const SizedBox(height: 16),
@@ -156,6 +177,33 @@ class _ApplicationCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _confirmReceipt(
+    BuildContext context,
+    LoanApplication application,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Mark funds as received?'),
+        content: const Text(
+          'This confirms you received the loan amount. EMI will start from the disbursement date and you will no longer be able to report a fund issue.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Confirm received'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    await context.read<LoanApplicationsCubit>().confirmReceipt(application.id);
   }
 
   Future<void> _reportIssue(
@@ -234,7 +282,7 @@ class _ApplicationCard extends StatelessWidget {
           subtitle: status == LoanStatus.approved
               ? 'Waiting for fund release'
               : status == LoanStatus.disbursed
-              ? 'Confirm receipt within 2 days'
+              ? 'Confirm receipt now, or report within 2 days'
               : status == LoanStatus.fundIssue
               ? 'Fund issue reported'
               : status.isCollectable || status == LoanStatus.closed

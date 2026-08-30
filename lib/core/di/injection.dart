@@ -149,10 +149,15 @@ void _registerLending({required bool useMocks}) {
       getBorrowerApplications: getIt(),
       getRepaymentHistory: getIt(),
       adminRepository: getIt(),
+      updateLoanStatus: getIt(),
     ),
   );
   getIt.registerFactory(
-    () => ApplyLoanCubit(applyForLoan: getIt(), calculateEmi: getIt()),
+    () => ApplyLoanCubit(
+      applyForLoan: getIt(),
+      calculateEmi: getIt(),
+      adminRepository: getIt(),
+    ),
   );
   getIt.registerFactory(
     () => LoanApplicationsCubit(
@@ -181,7 +186,11 @@ void _registerLending({required bool useMocks}) {
     () => KycReviewCubit(getKycProfiles: getIt(), reviewKyc: getIt()),
   );
   getIt.registerFactory(
-    () => CreateLoanCubit(getCustomers: getIt(), createLoanForUser: getIt()),
+    () => CreateLoanCubit(
+      getCustomers: getIt(),
+      getKycProfiles: getIt(),
+      createLoanForUser: getIt(),
+    ),
   );
   getIt.registerFactory(
     () => CollectionsCubit(

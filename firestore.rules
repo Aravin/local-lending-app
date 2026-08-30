@@ -14,6 +14,12 @@ service cloud.firestore {
       return isSignedIn() && data.borrowerId == request.auth.uid;
     }
 
+    function hasSubmittedKyc(userId) {
+      return exists(/databases/$(database)/documents/kyc/$(userId)) &&
+        get(/databases/$(database)/documents/kyc/$(userId)).data.status
+          in ['submitted', 'verified'];
+    }
+
     function isValidLoanApplication(applicationId, data) {
       return data.keys().hasAll([
           'id',
@@ -147,7 +153,8 @@ service cloud.firestore {
     match /loan_applications/{applicationId} {
       allow read: if isAdmin() || owns(resource.data);
       allow create: if isSignedIn() &&
-        isValidLoanApplication(applicationId, request.resource.data);
+        isValidLoanApplication(applicationId, request.resource.data) &&
+        hasSubmittedKyc(request.auth.uid);
       allow update, delete: if isAdmin();
     }
 
