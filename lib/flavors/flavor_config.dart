@@ -31,7 +31,9 @@ class FlavorConfig {
   static Color get secondaryColor => instance.secondaryColor;
   static Color get tertiaryColor => instance.tertiaryColor;
   static String get logoAssetPath => instance.logoAssetPath;
+  static String get logoFullAssetPath => instance.logoFullAssetPath;
   static String get currencySymbol => instance.currencySymbol;
+
   static String get phoneCountryCode => instance.phoneCountryCode;
   static bool get enableAdminFeatures => instance.enableAdminFeatures;
   static bool get enableCommunityFeatures => instance.enableCommunityFeatures;

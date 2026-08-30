@@ -28,6 +28,9 @@ class CapeFinanceConfig extends AppConfig {
   String get logoAssetPath => 'assets/images/cape_finance/logo.png';
 
   @override
+  String get logoFullAssetPath => 'assets/images/cape_finance/logo_full.png';
+
+  @override
   String get apiBaseUrl => ''; // Uses Firestore directly
 
   @override

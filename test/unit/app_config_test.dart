@@ -20,8 +20,17 @@ void main() {
       final config = CapeFinanceConfig();
       expect(config.appName, equals('Cape Finance'));
       expect(config.packageName, equals('com.capefinance.app'));
+      expect(
+        config.logoAssetPath,
+        equals('assets/images/cape_finance/logo.png'),
+      );
+      expect(
+        config.logoFullAssetPath,
+        equals('assets/images/cape_finance/logo_full.png'),
+      );
       expect(config.currencySymbol, equals('₹'));
       expect(config.phoneCountryCode, equals('+91'));
+
       expect(config.maxLoanAmountPaise, equals(100000000)); // ₹10 Lakhs
       expect(config.minLoanAmountPaise, equals(100000)); // ₹1,000
       expect(config.supportedFrequencies, contains(RepaymentFrequency.daily));

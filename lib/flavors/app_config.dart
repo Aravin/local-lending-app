@@ -22,6 +22,9 @@ abstract class AppConfig {
   /// Asset path to the client logo (e.g. "assets/images/local_lending_hub/logo.png").
   String get logoAssetPath;
 
+  /// Asset path to full horizontal logo with brand wordmark (e.g. for splash & auth headers).
+  String get logoFullAssetPath;
+
   /// Backend API base URL. Empty string = use Firestore directly.
   String get apiBaseUrl;
 

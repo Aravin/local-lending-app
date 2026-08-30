@@ -27,6 +27,9 @@ class LocalLendingHubConfig extends AppConfig {
   String get logoAssetPath => 'assets/images/local_lending_hub/logo.png';
 
   @override
+  String get logoFullAssetPath => 'assets/images/local_lending_hub/logo.png';
+
+  @override
   String get apiBaseUrl => ''; // Uses Firestore directly
 
   @override
