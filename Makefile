@@ -3,7 +3,7 @@
 FLAVOR ?= localLendingHub
 ENTRYPOINT := lib/main_$(FLAVOR).dart
 
-.PHONY: help setup run build-apk build-aab test coverage gen lint format clean docs set-admin
+.PHONY: help setup run build-apk build-aab build-android test coverage gen lint format clean docs set-admin
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -33,6 +33,9 @@ build-release-cape: ## Build release APK for Cape Finance
 
 build-aab-cape: ## Build production App Bundle for Cape Finance
 	flutter build appbundle --release --flavor capeFinance -t lib/main_cape_finance.dart
+
+build-android: ## Interactive Android APK/AAB build (bumps minor + build)
+	@bash scripts/build_android.sh
 
 
 test: ## Run all tests
