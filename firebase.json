@@ -1,0 +1,12 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "functions": {
+    "source": "functions"
+  },
+  "storage": {
+    "target": "kyc",
+    "rules": "storage.rules"
+  }
+}

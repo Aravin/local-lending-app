@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "cape-finance"
+  },
+  "targets": {
+    "cape-finance": {
+      "storage": {
+        "kyc": [
+          "cape-finance-kyc-265372728533"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
