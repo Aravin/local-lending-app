@@ -94,10 +94,11 @@ dev_dependencies:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: false
-  image_path: "assets/images/cape_finance/logo.png"
+  image_path: "assets/images/cape_finance/logo_white.jpeg"
   min_sdk_android: 21
-  adaptive_icon_background: "#17385D"
-  adaptive_icon_foreground: "assets/images/cape_finance/logo.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/cape_finance/logo_white.jpeg"
+  adaptive_icon_foreground_inset: 0
 
 
 

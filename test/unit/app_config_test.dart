@@ -26,7 +26,7 @@ void main() {
 
       expect(
         config.logoAssetPath,
-        equals('assets/images/cape_finance/logo.png'),
+        equals('assets/images/cape_finance/logo_white.jpeg'),
       );
       expect(
         config.logoFullAssetPath,

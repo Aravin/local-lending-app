@@ -25,7 +25,7 @@ class CapeFinanceConfig extends AppConfig {
   Color get tertiaryColor => const Color(0xFF0D2540); // Midnight Navy (for trust badges and headers)
 
   @override
-  String get logoAssetPath => 'assets/images/cape_finance/logo.png';
+  String get logoAssetPath => 'assets/images/cape_finance/logo_white.jpeg';
 
   @override
   String get logoFullAssetPath => 'assets/images/cape_finance/logo_full.png';

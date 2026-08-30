@@ -24,7 +24,7 @@ class LocalLendingHubConfig extends AppConfig {
   Color get tertiaryColor => const Color(0xFF3452C1);
 
   @override
-  String get logoAssetPath => 'assets/images/local_lending_hub/logo.png';
+  String get logoAssetPath => 'assets/images/local_lending_hub/logo_white.jpeg';
 
   @override
   String get logoFullAssetPath => 'assets/images/local_lending_hub/logo.png';
