@@ -1,6 +1,6 @@
 # Local Lending Hub
 
-A modern, white-label fintech mobile app built with Flutter for local lending communities and micro-finance groups in India.
+A modern, white-label fintech mobile app built with Flutter for digital lending and micro-finance operations in India.
 
 ## Key Features
 

@@ -53,7 +53,7 @@ Use Flutter **product flavors** (Android) + `AppConfig` abstract class pattern.
 
 ✅ Zero code changes to add a new client  
 ✅ Each client gets separate APK / Play Store listing  
-✅ Feature flags (admin, community) controllable per client  
+✅ Feature flags (e.g. admin portal) controllable per client  
 ⚠️ CI must build one APK per flavor
 
 ---

@@ -36,7 +36,6 @@ class FlavorConfig {
 
   static String get phoneCountryCode => instance.phoneCountryCode;
   static bool get enableAdminFeatures => instance.enableAdminFeatures;
-  static bool get enableCommunityFeatures => instance.enableCommunityFeatures;
   static List<RepaymentFrequency> get supportedFrequencies =>
       instance.supportedFrequencies;
   static bool get allowHolidaySkip => instance.allowHolidaySkip;

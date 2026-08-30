@@ -58,3 +58,10 @@ class LoanFailure extends Failure {
 class RepaymentFailure extends Failure {
   const RepaymentFailure(super.message);
 }
+
+/// Authentication failures (e.g. Google Sign-In failed, canceled, permission denied).
+class AuthFailure extends Failure {
+  const AuthFailure([
+    super.message = 'Authentication failed. Please try again.',
+  ]);
+}

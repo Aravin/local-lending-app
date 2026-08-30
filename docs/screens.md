@@ -1,6 +1,6 @@
 # Screen Catalog & User Flows
 
-## Borrower Experience
+## Borrower Portal
 
 1. **Splash & Onboarding**:
    - Displays client branding, dynamic logo, and punchy value proposition.
@@ -22,7 +22,7 @@
 6. **Repayment History**:
    - Filterable transaction logs by frequency type and status.
 
-## Lender / Admin Experience
+## Lender & Admin Console
 
 1. **Admin Dashboard**:
    - Portfolio metrics: Total Capital Disbursed, Total Collected, Total Outstanding, Overdue Risk Ratio.
@@ -31,7 +31,7 @@
    - Grouped list of all borrowers with payments due today.
    - Quick mark-as-paid or partial payment logging.
 3. **Loan Application Approvals**:
-   - Application queue, applicant profile, credit score/community trust metrics.
+   - Application queue, applicant profile, credit score and underwriting metrics.
    - Approve, Reject with reason, or Counter-offer.
 4. **Reports & Insights**:
    - Visual charts (fl_chart) for loan disbursement trends, delinquency aging buckets (1-7 days, 8-30 days, 30+ days).

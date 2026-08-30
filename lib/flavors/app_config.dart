@@ -37,9 +37,6 @@ abstract class AppConfig {
   /// Whether to show the admin/lender section of the app.
   bool get enableAdminFeatures;
 
-  /// Whether to show community/trust-network features.
-  bool get enableCommunityFeatures;
-
   /// Which repayment frequencies this client offers to borrowers.
   /// Controls the options shown in the Apply for Loan form.
   List<RepaymentFrequency> get supportedFrequencies;

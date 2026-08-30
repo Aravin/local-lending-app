@@ -7,7 +7,7 @@ import 'package:local_lending_app/flavors/app_config.dart';
 /// Brand Identity:
 /// - Primary: Ocean Deep Navy (`#0A2540` / `#1E3A8A`) — Trust, Stability, Institutional Strength.
 /// - Secondary: Vibrant Emerald Green (`#059669`) — Growth, Prosperity, Successful Returns.
-/// - Tertiary: Warm Gold/Amber (`#D97706`) — Wealth, Community Value, Premium Security.
+/// - Tertiary: Warm Gold/Amber (`#D97706`) — Wealth, Asset Value, Premium Security.
 class CapeFinanceConfig extends AppConfig {
   @override
   String get appName => 'Cape Finance';
@@ -41,9 +41,6 @@ class CapeFinanceConfig extends AppConfig {
 
   @override
   bool get enableAdminFeatures => true;
-
-  @override
-  bool get enableCommunityFeatures => true;
 
   /// Supports all 4 repayment frequencies (Daily, Weekly, Biweekly, Monthly).
   @override

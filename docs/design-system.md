@@ -4,7 +4,7 @@ Based on the mobile-first design spec from Stitch (Project `5305874959380477439`
 
 ## Visual Aesthetic
 
-- **Concept**: Community-Trust — Corporate Modern with a Human Touch.
+- **Concept**: Modern Corporate Fintech with a Human Touch.
 - **Form Factor**: Mobile First (390px base width, scalable).
 - **Core Font**: Inter (Google Fonts) with weights 400, 500, 600, 700.
 
@@ -14,7 +14,7 @@ Based on the mobile-first design spec from Stitch (Project `5305874959380477439`
 |---|---|---|
 | Primary | `#0D9488` | Main action buttons, active navigation, brand headers |
 | Secondary | `#006E2F` | Positive ROI, approval chips, repayment success |
-| Tertiary | `#3452C1` | Trust badges, community circle badges, secure locks |
+| Tertiary | `#3452C1` | Trust badges, security badges, secure locks |
 | Surface | `#F8F9FF` | App background, soft cards |
 | On Surface | `#0B1C30` | High-contrast body text and titles |
 | Surface Container | `#E5EEFF` | Secondary card fills, chip backgrounds |

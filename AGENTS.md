@@ -7,7 +7,7 @@
 
 ## What This Project Is
 
-A **Flutter white-label fintech app** for local lending communities in India.
+A **Flutter white-label fintech app** for digital lending in India.
 - Borrowers apply for loans and track repayments
 - Admins/lenders manage applications, collections, and reports
 - Multiple clients ("flavors") share one codebase — each gets their own branding + config

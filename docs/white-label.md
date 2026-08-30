@@ -47,9 +47,6 @@ class AcmeLendingConfig extends AppConfig {
   bool get enableAdminFeatures => true;
 
   @override
-  bool get enableCommunityFeatures => false;
-
-  @override
   List<RepaymentFrequency> get supportedFrequencies => [
     RepaymentFrequency.weekly,
     RepaymentFrequency.monthly,

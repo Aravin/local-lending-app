@@ -6,7 +6,7 @@ import 'package:local_lending_app/flavors/app_config.dart';
 ///
 /// Design system: Kinship Lending System (from Stitch)
 /// Primary brand: Deep Teal (#0D9488)
-/// Style: Community-Trust — Corporate Modern with a Human Touch
+/// Style: Corporate Modern with a Human Touch
 class LocalLendingHubConfig extends AppConfig {
   @override
   String get appName => 'Local Lending Hub';
@@ -40,9 +40,6 @@ class LocalLendingHubConfig extends AppConfig {
 
   @override
   bool get enableAdminFeatures => true;
-
-  @override
-  bool get enableCommunityFeatures => true;
 
   /// Supports all 4 repayment frequencies.
   @override
