@@ -1,11 +1,10 @@
 import 'package:dartz/dartz.dart';
 import 'package:local_lending_app/core/error/failures.dart';
 import 'package:local_lending_app/features/auth/domain/entities/auth_user.dart';
-import 'package:local_lending_app/features/auth/domain/entities/user_role.dart';
 
 abstract class AuthRepository {
   /// Sign in using Google Sign-In and Firebase Auth.
-  Future<Either<Failure, AuthUser>> signInWithGoogle({required UserRole role});
+  Future<Either<Failure, AuthUser>> signInWithGoogle();
 
   /// Signs out current session.
   Future<Either<Failure, void>> signOut();

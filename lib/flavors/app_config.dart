@@ -7,7 +7,7 @@ abstract class AppConfig {
   /// Display name shown in the app bar and system UI.
   String get appName;
 
-  /// Android/iOS package identifier (e.g. "com.locallendinghub.app").
+  /// Android/iOS package identifier (e.g. "net.aravin.cape_finance").
   String get packageName;
 
   /// Brand primary color — used for buttons, app bars, key actions.
@@ -50,4 +50,13 @@ abstract class AppConfig {
 
   /// Minimum loan amount in the smallest currency unit.
   int get minLoanAmountPaise;
+
+  /// Minimum flat annual interest rate shown to borrowers (percent).
+  double get minAnnualInterestRatePercent => 12;
+
+  /// Maximum flat annual interest rate shown to borrowers (percent).
+  double get maxAnnualInterestRatePercent => 48;
+
+  /// Default flat annual interest rate (percent).
+  double get defaultAnnualInterestRatePercent => 24;
 }

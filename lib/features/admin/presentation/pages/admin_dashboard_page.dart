@@ -1,469 +1,217 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:local_lending_app/core/di/injection.dart';
 import 'package:local_lending_app/core/utils/currency_formatter.dart';
+import 'package:local_lending_app/domain/entities/repayment_frequency.dart';
+import 'package:local_lending_app/features/admin/presentation/bloc/admin_dashboard_cubit.dart';
 import 'package:local_lending_app/features/auth/domain/entities/user_role.dart';
 import 'package:local_lending_app/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:local_lending_app/features/auth/presentation/bloc/auth_state.dart';
 import 'package:local_lending_app/flavors/flavor_config.dart';
+import 'package:local_lending_app/shared/widgets/metric_card.dart';
+import 'package:local_lending_app/shared/widgets/portal_switch_action.dart';
 
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final primaryColor = FlavorConfig.primaryColor;
-
-    return BlocConsumer<AuthCubit, AuthState>(
-      listener: (context, state) {
-        if (state is Unauthenticated) {
-          context.go('/login');
-        } else if (state is Authenticated && state.role.isClient) {
-          context.go('/client/dashboard');
-        }
-      },
-      builder: (context, state) {
-        final adminName = state is Authenticated
-            ? state.user.name
-            : 'Administrator';
-
-        return Scaffold(
-          backgroundColor: theme.colorScheme.surface,
-          appBar: AppBar(
-            elevation: 0,
-            title: Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.admin_panel_settings,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      FlavorConfig.appName,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Text(
-                      'Admin & Lender Console',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFFD97706),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+    return BlocProvider(
+      create: (_) => getIt<AdminDashboardCubit>()..load(),
+      child: BlocConsumer<AuthCubit, AuthState>(
+        listener: (context, state) {
+          if (state is Unauthenticated) {
+            context.go('/login');
+          } else if (state is Authenticated && state.role.isClient) {
+            context.go('/client/dashboard');
+          }
+        },
+        builder: (context, authState) {
+          final adminName = authState is Authenticated
+              ? authState.user.name
+              : 'Administrator';
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(FlavorConfig.appName),
+              actions: [
+                const PortalSwitchAction(),
+                IconButton(
+                  icon: const Icon(Icons.logout),
+                  onPressed: () => context.read<AuthCubit>().signOut(),
                 ),
               ],
             ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.logout),
-                tooltip: 'Log out',
-                onPressed: () {
-                  context.read<AuthCubit>().signOut();
-                },
-              ),
-            ],
-          ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header Greeting
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            body: BlocBuilder<AdminDashboardCubit, AdminDashboardState>(
+              builder: (context, state) {
+                if (state.loading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final stats = state.stats;
+                if (stats == null) {
+                  return Center(child: Text(state.errorMessage ?? 'No data'));
+                }
+                return ListView(
+                  padding: const EdgeInsets.all(20),
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Text(
+                      adminName,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Text('Admin & Lender Console'),
+                    const Text('Lending Portfolio Overview'),
+                    const SizedBox(height: 16),
+                    Row(
                       children: [
-                        Text(
-                          adminName,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: MetricCard(
+                            title: 'Total Disbursed',
+                            value: CurrencyFormatter.formatCompact(
+                              stats.totalDisbursedRupees,
+                            ),
+                            subValue: '${stats.activeLoanCount} active loans',
+                            icon: Icons.account_balance_wallet_outlined,
+                            accentColor: FlavorConfig.primaryColor,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Lending Portfolio Overview',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.outline,
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: MetricCard(
+                            title: 'Total Collected',
+                            value: CurrencyFormatter.formatCompact(
+                              stats.totalCollectedRupees,
+                            ),
+                            subValue:
+                                '${(stats.collectionRate * 100).toStringAsFixed(1)}% collected',
+                            icon: Icons.payments_outlined,
+                            accentColor: const Color(0xFF059669),
                           ),
                         ),
                       ],
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD97706).withAlpha(25),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: const Color(0xFFD97706).withAlpha(80),
-                        ),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(
-                            Icons.verified_user,
-                            size: 14,
-                            color: Color(0xFFD97706),
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            'Lender & Admin',
-                            style: TextStyle(
-                              color: Color(0xFFD97706),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 11,
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: MetricCard(
+                            title: 'Outstanding',
+                            value: CurrencyFormatter.formatCompact(
+                              stats.totalOutstandingRupees,
                             ),
+                            subValue: 'Principal + flat interest',
+                            icon: Icons.pending_actions_outlined,
+                            accentColor: const Color(0xFF2563EB),
                           ),
-                        ],
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: MetricCard(
+                            title: 'Overdue ratio',
+                            value:
+                                '${(stats.overdueRatio * 100).toStringAsFixed(1)}%',
+                            subValue: '${stats.overdueCount} overdue',
+                            icon: Icons.shield_outlined,
+                            accentColor: const Color(0xFFDC2626),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Repayment frequency',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: RepaymentFrequency.values.map((frequency) {
+                        final count = stats.loansByFrequency[frequency] ?? 0;
+                        return Chip(label: Text('${frequency.label}: $count'));
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+                    _NavTile(
+                      icon: Icons.calendar_today_rounded,
+                      title: 'Daily Collection Sheet',
+                      subtitle:
+                          '${CurrencyFormatter.format(stats.dueTodayRupees)} due today • ${stats.dueTodayCount} borrowers',
+                      route: '/admin/collections',
+                    ),
+                    const _NavTile(
+                      icon: Icons.people_outline,
+                      title: 'Customer Management',
+                      subtitle: 'Search borrowers, risk tiers, repayment rate',
+                      route: '/admin/customers',
+                    ),
+                    const _NavTile(
+                      icon: Icons.verified_user_outlined,
+                      title: 'KYC Review',
+                      subtitle: 'Approve, reject, and track annual renewals',
+                      route: '/admin/kyc',
+                    ),
+                    _NavTile(
+                      icon: Icons.fact_check_outlined,
+                      title: 'Loan Management & Approvals',
+                      subtitle:
+                          '${stats.pendingApplicationCount} pending requests',
+                      route: '/admin/loans',
+                    ),
+                    const _NavTile(
+                      icon: Icons.add_business_outlined,
+                      title: 'Create Loan for User',
+                      subtitle: 'Admin-initiated disbursement',
+                      route: '/admin/loans/create',
+                    ),
+                    const _NavTile(
+                      icon: Icons.inbox_outlined,
+                      title: 'New Loan Requests',
+                      subtitle: 'Quick approve from the request queue',
+                      route: '/admin/loans/requests',
+                    ),
+                    const _NavTile(
+                      icon: Icons.analytics_outlined,
+                      title: 'Reports & Insights',
+                      subtitle: 'Trends, delinquency buckets, CSV/PDF export',
+                      route: '/admin/reports',
+                    ),
                   ],
-                ),
-                const SizedBox(height: 20),
-
-                // Portfolio KPI Metrics Grid (2x2)
-                _buildPortfolioMetrics(theme, primaryColor),
-                const SizedBox(height: 20),
-
-                // Repayment Frequency Breakdown
-                _buildFrequencyBreakdown(theme, primaryColor),
-                const SizedBox(height: 20),
-
-                // Admin Action Cards
-                _buildAdminActionCards(context, theme, primaryColor),
-              ],
+                );
+              },
             ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildPortfolioMetrics(ThemeData theme, Color primaryColor) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            // Disbursed Capital
-            Expanded(
-              child: _buildMetricCard(
-                theme: theme,
-                title: 'Total Disbursed',
-                value: CurrencyFormatter.formatCompact(2450000),
-                subValue: '85 Active Loans',
-                icon: Icons.account_balance_wallet_outlined,
-                accentColor: primaryColor,
-              ),
-            ),
-            const SizedBox(width: 14),
-            // Collected Capital
-            Expanded(
-              child: _buildMetricCard(
-                theme: theme,
-                title: 'Total Collected',
-                value: CurrencyFormatter.formatCompact(1820000),
-                subValue: '74.2% Return Rate',
-                icon: Icons.payments_outlined,
-                accentColor: const Color(0xFF059669),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        Row(
-          children: [
-            // Outstanding Dues
-            Expanded(
-              child: _buildMetricCard(
-                theme: theme,
-                title: 'Total Outstanding',
-                value: CurrencyFormatter.formatCompact(630000),
-                subValue: 'Principal + Flat Interest',
-                icon: Icons.pending_actions_outlined,
-                accentColor: const Color(0xFF2563EB),
-              ),
-            ),
-            const SizedBox(width: 14),
-            // Overdue Risk
-            Expanded(
-              child: _buildMetricCard(
-                theme: theme,
-                title: 'Overdue Risk Ratio',
-                value: '2.4%',
-                subValue: 'Low Risk • 2 Overdue',
-                icon: Icons.shield_outlined,
-                accentColor: const Color(0xFFDC2626),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMetricCard({
-    required ThemeData theme,
-    required String title,
-    required String value,
-    required String subValue,
-    required IconData icon,
-    required Color accentColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(8),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.outline,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Icon(icon, color: accentColor, size: 20),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subValue,
-            style: TextStyle(
-              color: accentColor,
-              fontWeight: FontWeight.w600,
-              fontSize: 11,
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
+}
 
-  Widget _buildFrequencyBreakdown(ThemeData theme, Color primaryColor) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Repayment Frequency Distribution',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _buildFrequencyPill('Daily', '42 Loans', primaryColor),
-              const SizedBox(width: 8),
-              _buildFrequencyPill(
-                'Weekly',
-                '28 Loans',
-                const Color(0xFF059669),
-              ),
-              const SizedBox(width: 8),
-              _buildFrequencyPill(
-                'Monthly',
-                '15 Loans',
-                const Color(0xFF2563EB),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+class _NavTile extends StatelessWidget {
+  const _NavTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.route,
+  });
 
-  Widget _buildFrequencyPill(String name, String count, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        decoration: BoxDecoration(
-          color: color.withAlpha(20),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withAlpha(50)),
-        ),
-        child: Column(
-          children: [
-            Text(
-              name,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              count,
-              style: const TextStyle(color: Colors.black87, fontSize: 11),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String route;
 
-  Widget _buildAdminActionCards(
-    BuildContext context,
-    ThemeData theme,
-    Color primaryColor,
-  ) {
-    return Column(
-      children: [
-        // 1. Today's Daily Collection Sheet
-        _buildActionTile(
-          theme: theme,
-          icon: Icons.calendar_today_rounded,
-          iconColor: primaryColor,
-          title: 'Daily Collection Sheet',
-          subtitle: '₹28,500 due today across 18 borrowers',
-          trailingBadge: '18 DUES',
-          badgeColor: primaryColor,
-        ),
-        const SizedBox(height: 12),
-
-        // 2. Pending Loan Approvals
-        _buildActionTile(
-          theme: theme,
-          icon: Icons.fact_check_outlined,
-          iconColor: const Color(0xFFD97706),
-          title: 'Loan Application Approvals',
-          subtitle: '4 pending loan requests awaiting decision',
-          trailingBadge: '4 NEW',
-          badgeColor: const Color(0xFFD97706),
-        ),
-        const SizedBox(height: 12),
-
-        // 3. Reports & Delinquency Aging
-        _buildActionTile(
-          theme: theme,
-          icon: Icons.analytics_outlined,
-          iconColor: const Color(0xFF2563EB),
-          title: 'Reports & Risk Insights',
-          subtitle: 'Delinquency aging buckets (1-7d, 8-30d) and CSV export',
-          trailingBadge: 'PDF/CSV',
-          badgeColor: const Color(0xFF2563EB),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionTile({
-    required ThemeData theme,
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required String trailingBadge,
-    required Color badgeColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: iconColor.withAlpha(25),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: iconColor, size: 22),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: theme.colorScheme.outline,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: badgeColor.withAlpha(25),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              trailingBadge,
-              style: TextStyle(
-                color: badgeColor,
-                fontWeight: FontWeight.bold,
-                fontSize: 11,
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          Icon(Icons.chevron_right, color: theme.colorScheme.outline, size: 18),
-        ],
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: Icon(icon, color: FlavorConfig.primaryColor),
+        title: Text(title),
+        subtitle: Text(subtitle),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => context.push(route),
       ),
     );
   }

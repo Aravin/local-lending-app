@@ -12,7 +12,7 @@ class LocalLendingHubConfig extends AppConfig {
   String get appName => 'Local Lending Hub';
 
   @override
-  String get packageName => 'com.locallendinghub.app';
+  String get packageName => 'net.aravin.cape_finance';
 
   @override
   Color get primaryColor => const Color(0xFF0D9488);

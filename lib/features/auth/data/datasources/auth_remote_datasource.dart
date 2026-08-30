@@ -4,7 +4,7 @@ import 'package:local_lending_app/features/auth/domain/entities/auth_user.dart';
 import 'package:local_lending_app/features/auth/domain/entities/user_role.dart';
 
 abstract class AuthRemoteDataSource {
-  Future<AuthUser> signInWithGoogle({required UserRole role});
+  Future<AuthUser> signInWithGoogle();
   Future<void> signOut();
   Future<AuthUser?> getCurrentUser();
   Stream<AuthUser?> get authStateChanges;
@@ -21,7 +21,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   final GoogleSignIn _googleSignIn;
 
   @override
-  Future<AuthUser> signInWithGoogle({required UserRole role}) async {
+  Future<AuthUser> signInWithGoogle() async {
     final googleUser = await _googleSignIn.signIn();
     if (googleUser == null) {
       throw Exception('Google sign-in was cancelled by user.');
@@ -40,14 +40,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       throw Exception('Failed to retrieve user from Firebase Auth.');
     }
 
-    return AuthUser(
-      id: user.uid,
-      name: user.displayName ?? (role.isAdmin ? 'Lender Admin' : 'Borrower'),
-      email: user.email ?? '',
-      role: role,
-      phoneNumber: user.phoneNumber,
-      avatarUrl: user.photoURL,
-    );
+    return _toAuthUser(user, refreshClaims: true);
   }
 
   @override
@@ -60,28 +53,31 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     final currentFbUser = _firebaseAuth.currentUser;
     if (currentFbUser == null) return null;
 
-    return AuthUser(
-      id: currentFbUser.uid,
-      name: currentFbUser.displayName ?? 'User',
-      email: currentFbUser.email ?? '',
-      role: UserRole.client, // Default role
-      phoneNumber: currentFbUser.phoneNumber,
-      avatarUrl: currentFbUser.photoURL,
-    );
+    return _toAuthUser(currentFbUser);
   }
 
   @override
   Stream<AuthUser?> get authStateChanges {
-    return _firebaseAuth.authStateChanges().map((user) {
+    return _firebaseAuth.idTokenChanges().asyncMap((user) async {
       if (user == null) return null;
-      return AuthUser(
-        id: user.uid,
-        name: user.displayName ?? 'User',
-        email: user.email ?? '',
-        role: UserRole.client,
-        phoneNumber: user.phoneNumber,
-        avatarUrl: user.photoURL,
-      );
+      return _toAuthUser(user);
     });
+  }
+
+  Future<AuthUser> _toAuthUser(
+    fb.User user, {
+    bool refreshClaims = false,
+  }) async {
+    final token = await user.getIdTokenResult(refreshClaims);
+    final claims = token.claims ?? const <String, dynamic>{};
+    final isAdmin = claims['admin'] == true;
+    return AuthUser(
+      id: user.uid,
+      name: user.displayName ?? (isAdmin ? 'Lender Admin' : 'Borrower'),
+      email: user.email ?? '',
+      role: isAdmin ? UserRole.admin : UserRole.client,
+      phoneNumber: user.phoneNumber,
+      avatarUrl: user.photoURL,
+    );
   }
 }

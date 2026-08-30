@@ -22,7 +22,8 @@ void main() async {
   await Firebase.initializeApp();
 
   // 4. Configure DI container
-  configureDependencies();
+  const useMocks = bool.fromEnvironment('USE_MOCKS');
+  configureDependencies(useMocks: useMocks);
 
   // 5. Run the application
   runApp(const App());

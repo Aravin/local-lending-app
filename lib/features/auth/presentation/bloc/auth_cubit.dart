@@ -9,12 +9,12 @@ class AuthCubit extends Cubit<AuthState> {
   final AuthRepository authRepository;
 
   /// Production Google Sign-In with Firebase Auth
-  Future<void> signInWithGoogle({required UserRole role}) async {
+  Future<void> signInWithGoogle() async {
     emit(const AuthLoading(message: 'Signing in with Google...'));
-    final result = await authRepository.signInWithGoogle(role: role);
+    final result = await authRepository.signInWithGoogle();
     result.fold(
       (failure) => emit(AuthError(message: failure.message)),
-      (user) => emit(Authenticated(user: user, role: role)),
+      (user) => emit(Authenticated(user: user, role: user.role)),
     );
   }
 
@@ -38,5 +38,20 @@ class AuthCubit extends Cubit<AuthState> {
         emit(const Unauthenticated());
       }
     });
+  }
+
+  /// Switch the active portal. Only users with admin access can leave admin
+  /// view for the client portal (and switch back). Defaults stay admin.
+  void switchPortal(UserRole portal) {
+    final current = state;
+    if (current is! Authenticated || !current.canSwitchPortal) return;
+    if (current.role == portal) return;
+    emit(current.copyWith(role: portal));
+  }
+
+  void togglePortal() {
+    final current = state;
+    if (current is! Authenticated || !current.canSwitchPortal) return;
+    switchPortal(current.role.isAdmin ? UserRole.client : UserRole.admin);
   }
 }

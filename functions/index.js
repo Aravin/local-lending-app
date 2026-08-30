@@ -1,10 +1,12 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
+const { getStorage } = require("firebase-admin/storage");
 
 initializeApp();
 
 const db = getFirestore();
+const kycBucket = getStorage().bucket("cape-finance-kyc-265372728533");
 const paymentMethods = new Set(["upi", "netBanking", "cash", "bankTransfer"]);
 
 exports.recordRepayment = onCall(
@@ -13,6 +15,12 @@ exports.recordRepayment = onCall(
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Sign in to record a payment.");
     }
+    if (request.auth.token.admin !== true) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only an administrator can confirm received payments.",
+      );
+    }
 
     const {
       loanId,
@@ -20,6 +28,7 @@ exports.recordRepayment = onCall(
       method,
       notes,
       installmentNumber,
+      idempotencyKey,
     } = request.data ?? {};
     const amountPaise = Math.round(Number(amountRupees) * 100);
     if (
@@ -27,7 +36,9 @@ exports.recordRepayment = onCall(
       loanId.length === 0 ||
       !Number.isSafeInteger(amountPaise) ||
       amountPaise <= 0 ||
-      !paymentMethods.has(method)
+      !paymentMethods.has(method) ||
+      typeof idempotencyKey !== "string" ||
+      !/^[A-Za-z0-9_-]{1,128}$/.test(idempotencyKey)
     ) {
       throw new HttpsError("invalid-argument", "Invalid repayment details.");
     }
@@ -39,21 +50,18 @@ exports.recordRepayment = onCall(
     }
 
     const loanRef = db.collection("loans").doc(loanId);
-    const repaymentRef = db.collection("repayments").doc();
+    const repaymentRef = db.collection("repayments").doc(idempotencyKey);
     return db.runTransaction(async (transaction) => {
+      const existingRepayment = await transaction.get(repaymentRef);
+      if (existingRepayment.exists) {
+        return existingRepayment.data();
+      }
       const snapshot = await transaction.get(loanRef);
       if (!snapshot.exists) {
         throw new HttpsError("not-found", `Loan ${loanId} was not found.`);
       }
 
       const loan = snapshot.data();
-      const isAdmin = request.auth.token.admin === true;
-      if (!isAdmin && loan.borrowerId !== request.auth.uid) {
-        throw new HttpsError(
-          "permission-denied",
-          "You cannot pay another borrower's loan.",
-        );
-      }
       if (!Array.isArray(loan.installments)) {
         throw new HttpsError("failed-precondition", "Loan schedule is invalid.");
       }
@@ -159,5 +167,142 @@ exports.recordRepayment = onCall(
       transaction.set(repaymentRef, repayment);
       return repayment;
     });
+  },
+);
+
+function isKycDocumentPath(path, userId, documentType) {
+  if (typeof path !== "string") {
+    return false;
+  }
+  const prefix = `kyc/${userId}/${documentType}-`;
+  const fileName = path.slice(prefix.length);
+  return path.startsWith(prefix) && /^[0-9]+[.][a-z0-9]+$/.test(fileName);
+}
+
+async function verifyKycDocument(path) {
+  const file = kycBucket.file(path);
+  const [exists] = await file.exists();
+  if (!exists) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Both KYC documents must be uploaded before submission.",
+    );
+  }
+  const [metadata] = await file.getMetadata();
+  const size = Number(metadata.size);
+  if (
+    !Number.isFinite(size) ||
+    size <= 0 ||
+    size >= 10 * 1024 * 1024 ||
+    !metadata.contentType?.startsWith("image/")
+  ) {
+    throw new HttpsError("failed-precondition", "Invalid KYC document.");
+  }
+}
+
+exports.submitKyc = onCall(
+  { region: "asia-south1" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign in to submit KYC.");
+    }
+
+    const {
+      fullName,
+      aadhaarNumber,
+      panNumber,
+      address,
+      idProofPath,
+      addressProofPath,
+    } = request.data ?? {};
+    const userId = request.auth.uid;
+    if (
+      typeof fullName !== "string" ||
+      fullName.trim().length < 2 ||
+      typeof aadhaarNumber !== "string" ||
+      !/^[0-9]{12}$/.test(aadhaarNumber) ||
+      typeof panNumber !== "string" ||
+      !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(panNumber) ||
+      typeof address !== "string" ||
+      address.trim().length === 0 ||
+      !isKycDocumentPath(idProofPath, userId, "identity") ||
+      !isKycDocumentPath(addressProofPath, userId, "address")
+    ) {
+      throw new HttpsError("invalid-argument", "Invalid KYC details.");
+    }
+
+    await Promise.all([
+      verifyKycDocument(idProofPath),
+      verifyKycDocument(addressProofPath),
+    ]);
+
+    const kycRef = db.collection("kyc").doc(userId);
+    const customerRef = db.collection("customers").doc(userId);
+    const submitted = await db.runTransaction(async (transaction) => {
+      const currentSnapshot = await transaction.get(kycRef);
+      const customerSnapshot = await transaction.get(customerRef);
+      const current = currentSnapshot.data();
+      const now = new Date();
+      if (current?.status === "submitted") {
+        throw new HttpsError(
+          "failed-precondition",
+          "This KYC submission is already under review.",
+        );
+      }
+      if (current?.status === "verified") {
+        const verifiedAt = new Date(current.verifiedAt);
+        if (Number.isNaN(verifiedAt.getTime())) {
+          throw new HttpsError(
+            "failed-precondition",
+            "The existing KYC verification date is invalid.",
+          );
+        }
+        const renewalOpensAt = new Date(verifiedAt);
+        renewalOpensAt.setFullYear(renewalOpensAt.getFullYear() + 1);
+        renewalOpensAt.setDate(renewalOpensAt.getDate() - 30);
+        if (now < renewalOpensAt) {
+          throw new HttpsError(
+            "failed-precondition",
+            "KYC renewal is not due yet.",
+          );
+        }
+      }
+      const profile = {
+        userId,
+        fullName: fullName.trim(),
+        aadhaarNumber,
+        panNumber,
+        address: address.trim(),
+        idProofUploaded: true,
+        addressProofUploaded: true,
+        idProofPath,
+        addressProofPath,
+        submittedAt: now.toISOString(),
+        verifiedAt: current?.verifiedAt ?? null,
+        rejectionReason: null,
+        status: "submitted",
+      };
+      transaction.set(kycRef, profile);
+      transaction.set(
+        customerRef,
+        customerSnapshot.exists
+          ? { kycStatus: "submitted" }
+          : {
+              id: userId,
+              name: fullName.trim(),
+              phone: "",
+              email: "",
+              activeLoansCount: 0,
+              lifetimeRepaymentRate: 1,
+              riskTier: "low",
+              kycStatus: "submitted",
+              outstandingRupees: 0,
+              address: address.trim(),
+            },
+        { merge: true },
+      );
+      return profile;
+    });
+    return submitted;
   },
 );

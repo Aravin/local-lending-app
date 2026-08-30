@@ -22,7 +22,8 @@ void main() async {
   await Firebase.initializeApp();
 
   // 4. Wire up all dependencies (repositories, blocs, use cases via get_it).
-  configureDependencies();
+  const useMocks = bool.fromEnvironment('USE_MOCKS');
+  configureDependencies(useMocks: useMocks);
 
   // 5. Run the app.
   runApp(const App());

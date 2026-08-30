@@ -28,39 +28,23 @@ void main() {
     ).thenAnswer((_) => Stream.value(null));
 
     getIt.reset();
+    configureDependencies();
+    getIt.unregister<AuthRepository>();
     getIt.registerLazySingleton<AuthRepository>(() => mockAuthRepository);
+    getIt.unregister<AuthCubit>();
     getIt.registerFactory<AuthCubit>(() => AuthCubit(authRepository: getIt()));
   });
 
-  testWidgets('App renders brand title and default Client role on Login', (
+  testWidgets('App renders secure Google sign-in on Login', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const App());
     await tester.pumpAndSettle();
 
-    // Verify brand name & default client role
     expect(find.text(FlavorConfig.appName), findsWidgets);
-    expect(find.text('Client / Borrower'), findsOneWidget);
-    expect(find.text('Admin / Lender'), findsOneWidget);
-    expect(find.text('Continue with Google (Borrower)'), findsOneWidget);
+    expect(find.text('Continue with Google'), findsOneWidget);
     expect(find.text('Borrower Portal'), findsOneWidget);
   });
-
-  testWidgets(
-    'Toggling Admin switches button to Continue with Google (Admin)',
-    (WidgetTester tester) async {
-      await tester.pumpWidget(const App());
-      await tester.pumpAndSettle();
-
-      // Tap Admin toggle
-      await tester.tap(find.text('Admin / Lender'));
-      await tester.pumpAndSettle();
-
-      // Verify Admin context and Google button are updated
-      expect(find.text('Continue with Google (Admin)'), findsOneWidget);
-      expect(find.text('Admin & Lender Console'), findsOneWidget);
-    },
-  );
 
   testWidgets(
     'Successful Google login as Client navigates to Client Dashboard',
@@ -73,20 +57,25 @@ void main() {
       );
 
       when(
-        () => mockAuthRepository.signInWithGoogle(role: UserRole.client),
+        () => mockAuthRepository.signInWithGoogle(),
       ).thenAnswer((_) async => const Right(clientUser));
 
       await tester.pumpWidget(const App());
       await tester.pumpAndSettle();
 
       // Tap Google sign-in
-      await tester.tap(find.text('Continue with Google (Borrower)'));
+      await tester.tap(find.text('Continue with Google'));
       await tester.pumpAndSettle();
 
       // Verify Client Dashboard is visible
       expect(find.text('Client / Borrower Portal'), findsOneWidget);
-      expect(find.text('NEXT EMI DUE'), findsOneWidget);
+      expect(
+        find.text('No active loan yet. Apply to get started.'),
+        findsOneWidget,
+      );
       expect(find.text('Apply for Loan'), findsOneWidget);
+      expect(find.text('NEXT EMI DUE'), findsNothing);
+      expect(find.text('Pay EMI Online'), findsNothing);
     },
   );
 
@@ -101,23 +90,54 @@ void main() {
     );
 
     when(
-      () => mockAuthRepository.signInWithGoogle(role: UserRole.admin),
+      () => mockAuthRepository.signInWithGoogle(),
     ).thenAnswer((_) async => const Right(adminUser));
 
     await tester.pumpWidget(const App());
     await tester.pumpAndSettle();
 
-    // Switch to Admin
-    await tester.tap(find.text('Admin / Lender'));
-    await tester.pumpAndSettle();
-
-    // Tap Google sign-in
-    await tester.tap(find.text('Continue with Google (Admin)'));
+    await tester.tap(find.text('Continue with Google'));
     await tester.pumpAndSettle();
 
     // Verify Admin Dashboard is visible
     expect(find.text('Admin & Lender Console'), findsOneWidget);
     expect(find.text('Total Disbursed'), findsOneWidget);
     expect(find.text('Daily Collection Sheet'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Switch to client view'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Client / Borrower Portal'), findsOneWidget);
+    expect(find.byTooltip('Switch to admin view'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Switch to admin view'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Admin & Lender Console'), findsOneWidget);
+  });
+
+  testWidgets('Client login does not show portal switch', (
+    WidgetTester tester,
+  ) async {
+    const clientUser = AuthUser(
+      id: 'client_1',
+      name: 'Ramesh Patel',
+      email: 'ramesh@patel.in',
+      role: UserRole.client,
+    );
+
+    when(
+      () => mockAuthRepository.signInWithGoogle(),
+    ).thenAnswer((_) async => const Right(clientUser));
+
+    await tester.pumpWidget(const App());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Continue with Google'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Client / Borrower Portal'), findsOneWidget);
+    expect(find.byTooltip('Switch to admin view'), findsNothing);
+    expect(find.byTooltip('Switch to client view'), findsNothing);
   });
 }

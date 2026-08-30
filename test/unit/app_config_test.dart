@@ -10,10 +10,13 @@ void main() {
     test('LocalLendingHubConfig properties', () {
       final config = LocalLendingHubConfig();
       expect(config.appName, equals('Local Lending Hub'));
-      expect(config.packageName, equals('com.locallendinghub.app'));
+      expect(config.packageName, equals('net.aravin.cape_finance'));
       expect(config.currencySymbol, equals('₹'));
       expect(config.phoneCountryCode, equals('+91'));
       expect(config.supportedFrequencies.length, equals(4));
+      expect(config.minAnnualInterestRatePercent, equals(12));
+      expect(config.maxAnnualInterestRatePercent, equals(48));
+      expect(config.defaultAnnualInterestRatePercent, equals(24));
     });
 
     test('CapeFinanceConfig properties', () {

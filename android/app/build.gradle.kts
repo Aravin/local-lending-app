@@ -39,7 +39,7 @@ android {
     productFlavors {
         create("localLendingHub") {
             dimension = "app"
-            applicationId = "com.locallendinghub.app"
+            applicationId = "net.aravin.cape_finance"
             resValue("string", "app_name", "Local Lending Hub")
         }
         create("capeFinance") {
@@ -106,4 +106,3 @@ dependencies {
     // Firebase products
     implementation("com.google.firebase:firebase-analytics")
 }
-

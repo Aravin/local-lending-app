@@ -1,0 +1,189 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    function owns(data) {
+      return isSignedIn() && data.borrowerId == request.auth.uid;
+    }
+
+    function isValidLoanApplication(applicationId, data) {
+      return data.keys().hasAll([
+          'id',
+          'borrowerId',
+          'borrowerName',
+          'purpose',
+          'requestedAmountRupees',
+          'frequency',
+          'tenure',
+          'requestedAt',
+          'status',
+          'borrowerPhone',
+          'notes',
+          'reviewedAt',
+          'rejectionReason',
+          'counterOfferPrincipalRupees',
+          'annualInterestRatePercent'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'borrowerId',
+          'borrowerName',
+          'purpose',
+          'requestedAmountRupees',
+          'frequency',
+          'tenure',
+          'requestedAt',
+          'status',
+          'borrowerPhone',
+          'notes',
+          'reviewedAt',
+          'rejectionReason',
+          'counterOfferPrincipalRupees',
+          'annualInterestRatePercent'
+        ]) &&
+        data.id == applicationId &&
+        data.borrowerId == request.auth.uid &&
+        data.borrowerName is string &&
+        data.borrowerName.size() >= 2 &&
+        data.borrowerName.size() <= 200 &&
+        (data.borrowerPhone == null || data.borrowerPhone is string) &&
+        data.purpose in ['business', 'personal', 'emergency', 'education'] &&
+        data.requestedAmountRupees is number &&
+        data.requestedAmountRupees >= 500 &&
+        data.requestedAmountRupees <= 1000000 &&
+        data.frequency in ['daily', 'weekly', 'biweekly', 'monthly'] &&
+        data.tenure is int &&
+        (
+          (data.frequency == 'daily' &&
+            data.tenure >= 7 && data.tenure <= 90) ||
+          (data.frequency == 'weekly' &&
+            data.tenure >= 4 && data.tenure <= 52) ||
+          (data.frequency == 'biweekly' &&
+            data.tenure >= 2 && data.tenure <= 26) ||
+          (data.frequency == 'monthly' &&
+            data.tenure >= 1 && data.tenure <= 36)
+        ) &&
+        data.requestedAt is string &&
+        data.requestedAt.matches(
+          '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}([.][0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})?$'
+        ) &&
+        data.status == 'pending' &&
+        (data.notes == null || data.notes is string) &&
+        data.reviewedAt == null &&
+        data.rejectionReason == null &&
+        data.counterOfferPrincipalRupees == null &&
+        data.annualInterestRatePercent is number &&
+        data.annualInterestRatePercent >= 12 &&
+        data.annualInterestRatePercent <= 48;
+    }
+
+    function isValidCustomerProfile(customerId, data) {
+      return data.keys().hasAll([
+          'id',
+          'name',
+          'phone',
+          'email',
+          'activeLoansCount',
+          'lifetimeRepaymentRate',
+          'riskTier',
+          'kycStatus',
+          'outstandingRupees',
+          'address'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'name',
+          'phone',
+          'email',
+          'activeLoansCount',
+          'lifetimeRepaymentRate',
+          'riskTier',
+          'kycStatus',
+          'outstandingRupees',
+          'address'
+        ]) &&
+        data.id == customerId &&
+        data.name is string &&
+        data.name.size() <= 200 &&
+        data.phone is string &&
+        data.email is string &&
+        (data.address == null || data.address is string) &&
+        data.activeLoansCount is int &&
+        data.activeLoansCount >= 0 &&
+        data.lifetimeRepaymentRate is number &&
+        data.lifetimeRepaymentRate >= 0 &&
+        data.lifetimeRepaymentRate <= 1 &&
+        data.riskTier in ['low', 'medium', 'high'] &&
+        data.kycStatus in [
+          'pending',
+          'submitted',
+          'verified',
+          'rejected',
+          'expired'
+        ] &&
+        data.outstandingRupees is number &&
+        data.outstandingRupees >= 0;
+    }
+
+    match /loans/{loanId} {
+      allow read: if isAdmin() || owns(resource.data);
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin();
+    }
+
+    match /repayments/{repaymentId} {
+      allow read: if isAdmin() || owns(resource.data);
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /loan_applications/{applicationId} {
+      allow read: if isAdmin() || owns(resource.data);
+      allow create: if isSignedIn() &&
+        isValidLoanApplication(applicationId, request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+
+    match /customers/{customerId} {
+      allow read: if isAdmin() ||
+        (isSignedIn() && customerId == request.auth.uid);
+      allow create: if isAdmin() || (
+        isSignedIn() &&
+        customerId == request.auth.uid &&
+        isValidCustomerProfile(customerId, request.resource.data) &&
+        request.resource.data.activeLoansCount == 0 &&
+        request.resource.data.lifetimeRepaymentRate == 1 &&
+        request.resource.data.riskTier == 'low' &&
+        request.resource.data.kycStatus == 'pending' &&
+        request.resource.data.outstandingRupees == 0
+      );
+      allow update: if isAdmin() ||
+        (
+          isSignedIn() &&
+          customerId == request.auth.uid &&
+          isValidCustomerProfile(customerId, request.resource.data) &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['name', 'phone', 'email', 'address'])
+        );
+      allow delete: if isAdmin();
+    }
+
+    match /kyc/{userId} {
+      allow read: if isAdmin() ||
+        (isSignedIn() && userId == request.auth.uid);
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /metrics/{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

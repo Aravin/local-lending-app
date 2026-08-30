@@ -25,7 +25,16 @@ class Authenticated extends AuthState {
   const Authenticated({required this.user, required this.role});
 
   final AuthUser user;
+
+  /// Active portal. Admins default to [UserRole.admin] and may switch to
+  /// [UserRole.client]. Clients always stay in the borrower portal.
   final UserRole role;
+
+  bool get canSwitchPortal => user.role.isAdmin;
+
+  Authenticated copyWith({AuthUser? user, UserRole? role}) {
+    return Authenticated(user: user ?? this.user, role: role ?? this.role);
+  }
 
   @override
   List<Object?> get props => [user, role];

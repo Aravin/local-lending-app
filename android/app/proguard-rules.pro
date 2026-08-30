@@ -12,6 +12,10 @@
 -dontwarn com.google.firebase.**
 -keep class com.google.firebase.** { *; }
 
+# image_picker Pigeon APIs
+-keep class io.flutter.plugins.imagepicker.** { *; }
+-keepclassmembers class io.flutter.plugins.imagepicker.** { *; }
+
 # Keep models for JSON serialization reflection (if any)
 -keepclassmembers class * {
     @com.google.gson.annotations.SerializedName <fields>;

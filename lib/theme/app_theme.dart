@@ -16,13 +16,13 @@ class AppTheme {
       // Primary — Deep Teal
       primary: primaryColor,
       onPrimary: Colors.white,
-      primaryContainer: primaryColor.withAlpha(204), // 80% opacity
-      onPrimaryContainer: const Color(0xFFF4FFFC),
+      primaryContainer: const Color(0xFFCCFBF1),
+      onPrimaryContainer: const Color(0xFF134E4A),
       // Secondary — Soft Green
       secondary: secondaryColor,
       onSecondary: Colors.white,
-      secondaryContainer: const Color(0xFF6BFF8F),
-      onSecondaryContainer: const Color(0xFF007432),
+      secondaryContainer: const Color(0xFFD1FAE5),
+      onSecondaryContainer: const Color(0xFF065F46),
       // Tertiary — Deep Blue
       tertiary: tertiaryColor,
       onTertiary: Colors.white,
@@ -31,6 +31,8 @@ class AppTheme {
       // Surface
       surface: const Color(0xFFF8F9FF),
       onSurface: const Color(0xFF0B1C30),
+      onSurfaceVariant: const Color(0xFF3F4A56),
+      surfaceTint: Colors.transparent,
       surfaceContainerHighest: const Color(0xFFD3E4FE),
       surfaceContainerHigh: const Color(0xFFDCE9FF),
       surfaceContainer: const Color(0xFFE5EEFF),
@@ -79,7 +81,7 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
-          minimumSize: const Size(double.infinity, 52),
+          minimumSize: const Size(0, 52),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24), // 1.5rem — "touchable"
           ),
@@ -95,7 +97,7 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: primaryColor,
-          minimumSize: const Size(double.infinity, 52),
+          minimumSize: const Size(0, 52),
           side: BorderSide(color: primaryColor, width: 1.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
@@ -156,12 +158,31 @@ class AppTheme {
         ),
       ),
 
-      // Chip / Badge
+      // Chip / Badge — unselected: dark text on white; selected: white on brand primary
       chipTheme: ChipThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(9999), // pill
+        brightness: Brightness.light,
+        backgroundColor: Colors.white,
+        selectedColor: primaryColor,
+        disabledColor: const Color(0xFF0B1C30).withAlpha(31),
+        checkmarkColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        labelStyle: AppTypography.textTheme.labelLarge?.copyWith(
+          color: const Color(0xFF0B1C30),
+          fontWeight: FontWeight.w500,
         ),
-        labelStyle: AppTypography.textTheme.labelSmall,
+        secondaryLabelStyle: AppTypography.textTheme.labelLarge?.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: const StadiumBorder(),
+        side: const BorderSide(color: Color(0xFF6D7A77)),
+        color: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return primaryColor;
+          }
+          return Colors.white;
+        }),
       ),
 
       // Divider

@@ -120,4 +120,28 @@ void main() {
       );
     });
   });
+
+  group('Validators.validateAadhaar', () {
+    test('accepts 12-digit numbers', () {
+      expect(Validators.validateAadhaar('123456789012'), isNull);
+      expect(Validators.validateAadhaar('1234 5678 9012'), isNull);
+    });
+
+    test('rejects invalid values', () {
+      expect(Validators.validateAadhaar(null), isNotNull);
+      expect(Validators.validateAadhaar('12345'), isNotNull);
+    });
+  });
+
+  group('Validators.validatePan', () {
+    test('accepts PAN format', () {
+      expect(Validators.validatePan('ABCDE1234F'), isNull);
+      expect(Validators.validatePan('abcde1234f'), isNull);
+    });
+
+    test('rejects invalid values', () {
+      expect(Validators.validatePan(null), isNotNull);
+      expect(Validators.validatePan('ABCDE1234'), isNotNull);
+    });
+  });
 }

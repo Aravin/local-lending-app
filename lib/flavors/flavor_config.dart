@@ -39,4 +39,14 @@ class FlavorConfig {
   static List<RepaymentFrequency> get supportedFrequencies =>
       instance.supportedFrequencies;
   static bool get allowHolidaySkip => instance.allowHolidaySkip;
+  static int get minLoanAmountPaise => instance.minLoanAmountPaise;
+  static int get maxLoanAmountPaise => instance.maxLoanAmountPaise;
+  static double get minLoanAmountRupees => instance.minLoanAmountPaise / 100.0;
+  static double get maxLoanAmountRupees => instance.maxLoanAmountPaise / 100.0;
+  static double get minAnnualInterestRatePercent =>
+      instance.minAnnualInterestRatePercent;
+  static double get maxAnnualInterestRatePercent =>
+      instance.maxAnnualInterestRatePercent;
+  static double get defaultAnnualInterestRatePercent =>
+      instance.defaultAnnualInterestRatePercent;
 }

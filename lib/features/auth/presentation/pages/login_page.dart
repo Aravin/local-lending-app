@@ -15,10 +15,8 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  UserRole _selectedRole = UserRole.client; // Default: Client / Borrower
-
   void _onGoogleSignIn() {
-    context.read<AuthCubit>().signInWithGoogle(role: _selectedRole);
+    context.read<AuthCubit>().signInWithGoogle();
   }
 
   @override
@@ -70,12 +68,6 @@ class _LoginPageState extends State<LoginPage> {
                             // Brand Logo & Header
                             _buildBrandHeader(primaryColor, secondaryColor),
                             const SizedBox(height: 36),
-
-                            // Admin mode banner (only shown when admin is toggled)
-                            if (_selectedRole.isAdmin) ...[
-                              _buildAdminAlertBanner(theme),
-                              const SizedBox(height: 20),
-                            ],
 
                             // Google Sign-In Action Button
                             _buildGoogleSignInButton(
@@ -129,8 +121,16 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
 
-                // Stick-to-bottom small & discrete role switcher for admins
-                _buildStickyBottomRoleBar(theme, primaryColor),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                  child: Text(
+                    'Your portal is selected securely from your account permissions.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.outline,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               ],
             ),
           ),
@@ -190,160 +190,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildAdminAlertBanner(ThemeData theme) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF59E0B).withAlpha(18),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFF59E0B).withAlpha(60)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(
-            Icons.admin_panel_settings_outlined,
-            size: 20,
-            color: Color(0xFFD97706),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Admin & Lender Console',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFFB45309),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Sign in to manage portfolio risk, review applicant files, and log daily collection dues.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 12,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStickyBottomRoleBar(ThemeData theme, Color primaryColor) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          top: BorderSide(
-            color: theme.colorScheme.outlineVariant.withAlpha(40),
-            width: 1,
-          ),
-        ),
-      ),
-      child: Center(
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Portal: ',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.outline,
-                  fontSize: 11,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: Colors.black.withAlpha(10),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildSmallRoleOption(
-                      role: UserRole.client,
-                      label: 'Client / Borrower',
-                      icon: Icons.person_outline,
-                      primaryColor: primaryColor,
-                    ),
-                    _buildSmallRoleOption(
-                      role: UserRole.admin,
-                      label: 'Admin / Lender',
-                      icon: Icons.shield_outlined,
-                      primaryColor: primaryColor,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSmallRoleOption({
-    required UserRole role,
-    required String label,
-    required IconData icon,
-    required Color primaryColor,
-  }) {
-    final isSelected = _selectedRole == role;
-
-    return GestureDetector(
-      onTap: () => setState(() => _selectedRole = role),
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withAlpha(15),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 13,
-              color: isSelected ? primaryColor : Colors.grey.shade600,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected ? primaryColor : Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildGoogleSignInButton(
     ThemeData theme,
     Color primaryColor,
@@ -378,20 +224,17 @@ class _LoginPageState extends State<LoginPage> {
                 height: 24,
                 child: CircularProgressIndicator(strokeWidth: 2.5),
               )
-            : Row(
+            : const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Official Google "G" Emblem
-                  const GoogleLogo(size: 20),
-                  const SizedBox(width: 12),
+                  GoogleLogo(size: 20),
+                  SizedBox(width: 12),
                   Flexible(
                     child: Text(
-                      _selectedRole.isClient
-                          ? 'Continue with Google (Borrower)'
-                          : 'Continue with Google (Admin)',
+                      'Continue with Google',
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF1F2937),

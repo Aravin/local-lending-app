@@ -52,6 +52,31 @@ class Validators {
     return null;
   }
 
+  /// Validates a 12-digit Aadhaar number.
+  static String? validateAadhaar(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Aadhaar number is required';
+    }
+    final cleaned = value.replaceAll(RegExp(r'\s|-'), '');
+    if (!RegExp(r'^\d{12}$').hasMatch(cleaned)) {
+      return 'Enter a valid 12-digit Aadhaar number';
+    }
+    return null;
+  }
+
+  /// Validates a PAN in ABCDE1234F format.
+  static String? validatePan(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'PAN is required';
+    }
+    if (!RegExp(
+      r'^[A-Z]{5}[0-9]{4}[A-Z]$',
+    ).hasMatch(value.trim().toUpperCase())) {
+      return 'Enter a valid PAN (ABCDE1234F)';
+    }
+    return null;
+  }
+
   /// Validates tenure for a specific frequency.
   static String? validateTenure({
     required String? value,

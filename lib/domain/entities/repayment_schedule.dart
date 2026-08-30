@@ -82,7 +82,8 @@ class RepaymentSchedule extends Equatable {
   /// The next unpaid installment, or null if all are paid.
   RepaymentInstallment? get nextDue {
     for (final installment in installments) {
-      if (installment.status == InstallmentStatus.upcoming ||
+      if (installment.status == InstallmentStatus.overdue ||
+          installment.status == InstallmentStatus.upcoming ||
           installment.status == InstallmentStatus.partial) {
         return installment;
       }
