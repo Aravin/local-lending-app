@@ -28,13 +28,13 @@ android {
             applicationId = "com.locallendinghub.app"
             resValue("string", "app_name", "Local Lending Hub")
         }
-        // To add a new client, duplicate the block above:
-        // create("acmeLending") {
-        //     dimension = "app"
-        //     applicationId = "com.acmelending.app"
-        //     resValue("string", "app_name", "Acme Lending")
-        // }
+        create("capeFinance") {
+            dimension = "app"
+            applicationId = "com.capefinance.app"
+            resValue("string", "app_name", "Cape Finance")
+        }
     }
+
 
     defaultConfig {
         minSdk = flutter.minSdkVersion

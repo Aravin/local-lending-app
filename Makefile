@@ -16,17 +16,24 @@ setup: ## Install lefthook + pub dependencies
 	flutter pub get
 	@echo "✅ Setup complete!"
 
-run: ## Run app for a flavor (default: localLendingHub)
-	flutter run --flavor $(FLAVOR) -t $(ENTRYPOINT)
+run-hub: ## Run Local Lending Hub flavor
+	flutter run --flavor localLendingHub -t lib/main_local_lending_hub.dart
 
-build-apk: ## Build debug APK for a flavor
-	flutter build apk --flavor $(FLAVOR) -t $(ENTRYPOINT)
+run-cape: ## Run Cape Finance flavor
+	flutter run --flavor capeFinance -t lib/main_cape_finance.dart
 
-build-apk-release: ## Build release APK for a flavor
-	flutter build apk --release --flavor $(FLAVOR) -t $(ENTRYPOINT)
+build-apk-hub: ## Build debug APK for Local Lending Hub
+	flutter build apk --flavor localLendingHub -t lib/main_local_lending_hub.dart
 
-build-aab: ## Build App Bundle for Play Store upload
-	flutter build appbundle --release --flavor $(FLAVOR) -t $(ENTRYPOINT)
+build-apk-cape: ## Build debug APK for Cape Finance
+	flutter build apk --flavor capeFinance -t lib/main_cape_finance.dart
+
+build-release-cape: ## Build release APK for Cape Finance
+	flutter build apk --release --flavor capeFinance -t lib/main_cape_finance.dart
+
+build-aab-cape: ## Build production App Bundle for Cape Finance
+	flutter build appbundle --release --flavor capeFinance -t lib/main_cape_finance.dart
+
 
 test: ## Run all tests
 	flutter test --no-pub

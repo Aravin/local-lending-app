@@ -89,8 +89,10 @@ flutter:
 
   assets:
     - assets/images/local_lending_hub/
+    - assets/images/cape_finance/
     - assets/icons/
     - .env
+
 
   # fonts:
   #   - family: Inter
