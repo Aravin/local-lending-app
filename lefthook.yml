@@ -1,0 +1,21 @@
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      glob: "*.dart"
+      run: dart format --set-exit-if-changed {staged_files}
+      fail_text: "❌ Dart formatting issues found. Run 'dart format lib/ test/' to fix."
+
+    analyze:
+      run: flutter analyze --no-pub
+      fail_text: "❌ Flutter analyze failed. Fix all issues before committing."
+
+    tests:
+      run: flutter test --no-pub
+      fail_text: "❌ Tests failed. All tests must pass before committing."
+
+pre-push:
+  commands:
+    coverage:
+      run: flutter test --coverage --no-pub
+      fail_text: "❌ Test coverage check failed."

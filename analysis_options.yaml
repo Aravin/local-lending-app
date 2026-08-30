@@ -1,0 +1,47 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # Style
+    - always_use_package_imports
+    - directives_ordering
+    - prefer_const_constructors
+    - prefer_const_constructors_in_immutables
+    - prefer_const_declarations
+    - prefer_const_literals_to_create_immutables
+    - prefer_final_locals
+    - prefer_final_fields
+    - sized_box_for_whitespace
+    - use_super_parameters
+    - use_named_constants
+    - sort_constructors_first
+
+    # Safety
+    - avoid_print
+    - avoid_dynamic_calls
+    - cancel_subscriptions
+    - close_sinks
+    - unawaited_futures
+    - avoid_catching_errors
+    - avoid_slow_async_io
+
+    # Design
+    - avoid_classes_with_only_static_members
+    - one_member_abstracts
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "build/**"
+    - ".dart_tool/**"
+
+  errors:
+    missing_required_param: error
+    missing_return: error
+    invalid_assignment: error
+    todo: info
+
+  strong-mode:
+    implicit-casts: false
+    implicit-dynamic: false

@@ -1,0 +1,29 @@
+## Flutter White-Label Lending App Rules
+
+### Architecture
+- Follow Clean Architecture: data → domain → presentation layers per feature
+- Never import Firebase/Dio in presentation layer — use repositories via use cases
+- BLoC/Cubit for state management, go_router for navigation
+
+### White-Label
+- Never hardcode colors, strings, logos, or API URLs
+- Always read from FlavorConfig.instance (lib/flavors/flavor_config.dart)
+
+### Code Style
+- Use package imports (package:local_lending_app/...), never relative across features
+- Use const constructors everywhere possible
+- All BLoC events and states must use @freezed
+- Never use print() — use logger
+- Format: dart format, Lint: flutter analyze (must be zero issues)
+
+### Repayment Logic
+- EMI calculation ONLY via EmiCalculator (lib/core/utils/emi_calculator.dart)
+- Handle all 4 frequencies: daily, weekly, biweekly, monthly
+- Currency: always via CurrencyFormatter.format() → "₹1,23,456"
+- Monthly due dates: use month-end clamp (Jan 31 → Feb 28)
+
+### Testing
+- Every new screen → widget test + golden test
+- Every new BLoC → unit test covering all states
+- Minimum 80% coverage (make coverage)
+- Use mocktail, never mockito
