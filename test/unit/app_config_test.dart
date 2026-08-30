@@ -40,7 +40,7 @@ void main() {
     test('FlavorConfig dynamically switches active client config', () {
       FlavorConfig.instance = CapeFinanceConfig();
       expect(FlavorConfig.appName, equals('Cape Finance'));
-      expect(FlavorConfig.primaryColor, equals(const Color(0xFF0F3D3E)));
+      expect(FlavorConfig.primaryColor, equals(const Color(0xFF17385D)));
 
       FlavorConfig.instance = LocalLendingHubConfig();
       expect(FlavorConfig.appName, equals('Local Lending Hub'));

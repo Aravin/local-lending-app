@@ -24,6 +24,11 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    buildFeatures {
+        resValues = true
+    }
+
+
     // -------------------------------------------------------------------------
     // White-label flavor dimensions
     // Each client = one productFlavor with its own applicationId and resources.

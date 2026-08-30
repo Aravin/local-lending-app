@@ -16,13 +16,13 @@ class CapeFinanceConfig extends AppConfig {
   String get packageName => 'com.capefinance.app';
 
   @override
-  Color get primaryColor => const Color(0xFF0F3D3E); // Deep Cape Pine / Navy
+  Color get primaryColor => const Color(0xFF17385D); // Deep Maritime Navy (from logo wordmark)
 
   @override
-  Color get secondaryColor => const Color(0xFF059669); // Emerald Growth
+  Color get secondaryColor => const Color(0xFFC8A667); // Champagne Gold (from logo emblem)
 
   @override
-  Color get tertiaryColor => const Color(0xFFD97706); // Warm Amber Trust
+  Color get tertiaryColor => const Color(0xFF0D2540); // Midnight Navy (for trust badges and headers)
 
   @override
   String get logoAssetPath => 'assets/images/cape_finance/logo.png';
