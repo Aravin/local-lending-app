@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:local_lending_app/app.dart';
@@ -17,9 +18,12 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // 3. Configure DI container
+  // 3. Initialize Firebase
+  await Firebase.initializeApp();
+
+  // 4. Configure DI container
   configureDependencies();
 
-  // 4. Run the application
+  // 5. Run the application
   runApp(const App());
 }

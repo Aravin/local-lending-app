@@ -44,7 +44,7 @@ android {
         }
         create("capeFinance") {
             dimension = "app"
-            applicationId = "com.capefinance.app"
+            applicationId = "net.aravin.cape_finance"
             resValue("string", "app_name", "Cape Finance")
         }
     }
@@ -97,5 +97,13 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Import the Firebase BoM
+    implementation(platform("com.google.firebase:firebase-bom:34.18.0"))
+
+    // Firebase products
+    implementation("com.google.firebase:firebase-analytics")
 }
 

@@ -19,7 +19,8 @@ void main() {
     test('CapeFinanceConfig properties', () {
       final config = CapeFinanceConfig();
       expect(config.appName, equals('Cape Finance'));
-      expect(config.packageName, equals('com.capefinance.app'));
+      expect(config.packageName, equals('net.aravin.cape_finance'));
+
       expect(
         config.logoAssetPath,
         equals('assets/images/cape_finance/logo.png'),

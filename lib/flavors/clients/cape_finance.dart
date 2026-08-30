@@ -13,7 +13,7 @@ class CapeFinanceConfig extends AppConfig {
   String get appName => 'Cape Finance';
 
   @override
-  String get packageName => 'com.capefinance.app';
+  String get packageName => 'net.aravin.cape_finance';
 
   @override
   Color get primaryColor => const Color(0xFF17385D); // Deep Maritime Navy (from logo wordmark)
