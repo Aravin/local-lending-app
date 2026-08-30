@@ -3,7 +3,7 @@
 FLAVOR ?= localLendingHub
 ENTRYPOINT := lib/main_$(FLAVOR).dart
 
-.PHONY: help setup run build-apk build-aab test coverage gen lint format clean docs
+.PHONY: help setup run build-apk build-aab test coverage gen lint format clean docs set-admin
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -73,3 +73,6 @@ clean: ## Clean build artifacts
 
 docs: ## Serve docs locally (requires python3)
 	python3 -m http.server 8080 --directory docs/
+
+set-admin: ## Grant Firebase admin claim (prompts for UID)
+	@cd functions && npm install --silent && node set-admin.js
