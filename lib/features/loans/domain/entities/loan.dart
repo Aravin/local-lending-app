@@ -24,6 +24,9 @@ class Loan extends Equatable {
     this.closedDate,
     this.rejectionReason,
     this.counterOfferPrincipalRupees,
+    this.applicationId,
+    this.disbursementIssueReportedAt,
+    this.disbursementIssueReason,
   });
 
   final String id;
@@ -42,6 +45,9 @@ class Loan extends Equatable {
   final RepaymentSchedule schedule;
   final String? rejectionReason;
   final double? counterOfferPrincipalRupees;
+  final String? applicationId;
+  final DateTime? disbursementIssueReportedAt;
+  final String? disbursementIssueReason;
 
   double get outstandingRupees => schedule.outstandingRupees;
 
@@ -69,6 +75,9 @@ class Loan extends Equatable {
     schedule,
     rejectionReason,
     counterOfferPrincipalRupees,
+    applicationId,
+    disbursementIssueReportedAt,
+    disbursementIssueReason,
   ];
 
   Loan copyWith({
@@ -78,6 +87,10 @@ class Loan extends Equatable {
     DateTime? closedDate,
     String? rejectionReason,
     double? counterOfferPrincipalRupees,
+    String? applicationId,
+    DateTime? disbursementIssueReportedAt,
+    String? disbursementIssueReason,
+    bool clearDisbursementIssue = false,
   }) {
     return Loan(
       id: id,
@@ -97,6 +110,13 @@ class Loan extends Equatable {
       rejectionReason: rejectionReason ?? this.rejectionReason,
       counterOfferPrincipalRupees:
           counterOfferPrincipalRupees ?? this.counterOfferPrincipalRupees,
+      applicationId: applicationId ?? this.applicationId,
+      disbursementIssueReportedAt: clearDisbursementIssue
+          ? null
+          : disbursementIssueReportedAt ?? this.disbursementIssueReportedAt,
+      disbursementIssueReason: clearDisbursementIssue
+          ? null
+          : disbursementIssueReason ?? this.disbursementIssueReason,
     );
   }
 }

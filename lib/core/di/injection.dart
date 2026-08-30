@@ -52,7 +52,11 @@ final GetIt getIt = GetIt.instance;
 enum LendingDataMode { mock, firebase }
 
 /// Registers all dependencies — call once in main() before runApp().
-void configureDependencies({bool useMocks = true}) {
+///
+/// Defaults to Firebase. Pass [useMocks] only for tests and the offline
+/// [main.dart] entry. Flavor APKs (`make run-hub`, `make build-apk-cape`, …)
+/// use Firebase unless `--dart-define=USE_MOCKS=true`.
+void configureDependencies({bool useMocks = false}) {
   _registerCore(useMocks: useMocks);
   _registerAuth();
   _registerLending(useMocks: useMocks);
@@ -62,7 +66,9 @@ void _registerCore({required bool useMocks}) {
   getIt.registerSingleton(
     useMocks ? LendingDataMode.mock : LendingDataMode.firebase,
   );
-  getIt.registerLazySingleton<LendingMockStore>(LendingMockStore.new);
+  if (useMocks) {
+    getIt.registerLazySingleton<LendingMockStore>(LendingMockStore.new);
+  }
 }
 
 void _registerAuth() {
@@ -149,7 +155,10 @@ void _registerLending({required bool useMocks}) {
     () => ApplyLoanCubit(applyForLoan: getIt(), calculateEmi: getIt()),
   );
   getIt.registerFactory(
-    () => LoanApplicationsCubit(getBorrowerApplications: getIt()),
+    () => LoanApplicationsCubit(
+      getBorrowerApplications: getIt(),
+      updateLoanStatus: getIt(),
+    ),
   );
   getIt.registerFactory(
     () => PaymentCubit(getBorrowerLoans: getIt(), makeRepayment: getIt()),

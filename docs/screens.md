@@ -20,8 +20,9 @@
    - *Step 4*: Schedule preview, breakdown of total interest and EMI, instant submission.
    - After submit, borrower is taken to application status tracking.
 5. **Loan Application Status**:
-   - List of the signed-in borrower's requests with status chips (Pending, Approved, Rejected, Disbursed).
+   - List of the signed-in borrower's requests with status chips (Pending, Approved, Rejected, Disbursed, Fund issue).
    - Timeline of Applied → Under review → Decision → Disbursement, plus rejection/counter-offer details.
+   - After funds are released, a 2-day window to report "Fund not received". EMI starts from the disbursement date if no issue is reported.
 6. **Loan Details & Installment Schedule**:
    - Progress bar (Paid installments / Total).
    - List of all upcoming and settled installments with status chips (Paid, Partial, Overdue, Upcoming).
@@ -42,6 +43,7 @@
 3. **Loan Application Approvals**:
    - Application queue, applicant profile, credit score and underwriting metrics.
    - Approve, Reject with reason, or Counter-offer.
+   - After approval, **Release funds** marks the loan disbursed. Borrower then has 2 days to report a fund issue; EMI starts from the disbursement date otherwise.
 4. **KYC Review**:
    - Queue of submitted KYC packs. Approve or reject with a reason.
    - Last completed date and annual expiry / renewal-due filter.

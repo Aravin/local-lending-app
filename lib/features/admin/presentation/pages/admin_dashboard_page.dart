@@ -158,7 +158,7 @@ class AdminDashboardPage extends StatelessWidget {
                       icon: Icons.fact_check_outlined,
                       title: 'Loan Management & Approvals',
                       subtitle:
-                          '${stats.pendingApplicationCount} pending requests',
+                          '${stats.pendingApplicationCount} pending requests • approve, reject, or counter-offer',
                       route: '/admin/loans',
                     ),
                     const _NavTile(
@@ -166,12 +166,6 @@ class AdminDashboardPage extends StatelessWidget {
                       title: 'Create Loan for User',
                       subtitle: 'Admin-initiated disbursement',
                       route: '/admin/loans/create',
-                    ),
-                    const _NavTile(
-                      icon: Icons.inbox_outlined,
-                      title: 'New Loan Requests',
-                      subtitle: 'Quick approve from the request queue',
-                      route: '/admin/loans/requests',
                     ),
                     const _NavTile(
                       icon: Icons.analytics_outlined,

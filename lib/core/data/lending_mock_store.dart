@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 import 'package:local_lending_app/core/utils/date_utils.dart';
+import 'package:local_lending_app/core/utils/disbursement_policy.dart';
 import 'package:local_lending_app/core/utils/emi_calculator.dart';
 import 'package:local_lending_app/core/utils/payment_allocator.dart';
 import 'package:local_lending_app/domain/entities/repayment_frequency.dart';
@@ -212,6 +213,20 @@ class LendingMockStore {
         requestedAt: _today.subtract(const Duration(days: 3)),
         status: LoanStatus.pending,
       ),
+      LoanApplication(
+        id: 'app-approved-1',
+        borrowerId: customers[0].id,
+        borrowerName: customers[0].name,
+        borrowerPhone: customers[0].phone,
+        purpose: LoanPurpose.personal,
+        requestedAmountRupees: 12000,
+        frequency: RepaymentFrequency.weekly,
+        tenure: 10,
+        requestedAt: _today.subtract(const Duration(days: 2)),
+        reviewedAt: _today.subtract(const Duration(days: 1)),
+        status: LoanStatus.approved,
+        notes: 'Approved. Waiting for fund release.',
+      ),
     ]);
 
     _refreshCustomerAggregates();
@@ -310,17 +325,26 @@ class LendingMockStore {
     );
   }
 
+  List<Loan> getAllLoans() {
+    _activateConfirmedLoans();
+    return List.of(loans);
+  }
+
   List<Loan> getBorrowerLoans(String borrowerId) {
-    return loans.where((loan) => loan.borrowerId == borrowerId).toList();
+    return getAllLoans()
+        .where((loan) => loan.borrowerId == borrowerId)
+        .toList();
   }
 
   List<LoanApplication> getBorrowerApplications(String borrowerId) {
+    _activateConfirmedLoans();
     return applications
         .where((application) => application.borrowerId == borrowerId)
         .toList();
   }
 
   Loan getLoan(String loanId) {
+    _activateConfirmedLoans();
     return loans.firstWhere((loan) => loan.id == loanId);
   }
 
@@ -350,9 +374,15 @@ class LendingMockStore {
     String? notes,
     int? installmentNumber,
   }) {
+    _activateConfirmedLoans();
     final index = loans.indexWhere((loan) => loan.id == loanId);
     if (index < 0) {
       throw StateError('Loan $loanId not found');
+    }
+    if (!loans[index].status.isCollectable) {
+      throw StateError(
+        'EMI has not started for loan $loanId. Wait for the confirmation window or resolve the fund issue.',
+      );
     }
     final paidAt = DateTime.now();
     final allocation = allocatePayment(
@@ -386,32 +416,144 @@ class LendingMockStore {
     if (index < 0) {
       throw StateError('Application ${params.applicationId} not found');
     }
-    final application = applications[index].copyWith(
+    final current = applications[index];
+    if (!DisbursementPolicy.isAllowedTransition(
+      current.status,
+      params.status,
+    )) {
+      throw StateError(
+        'Cannot change loan status from ${current.status.name} to ${params.status.name}',
+      );
+    }
+
+    if (params.status == LoanStatus.fundIssue) {
+      if (!current.canReportDisbursementIssue()) {
+        throw StateError(
+          'The fund-confirmation window has closed for ${params.applicationId}',
+        );
+      }
+      final reportedAt = DateTime.now();
+      final application = current.copyWith(
+        status: LoanStatus.fundIssue,
+        disbursementIssueReportedAt: reportedAt,
+        disbursementIssueReason: params.issueReason,
+      );
+      applications[index] = application;
+      _updateLinkedLoan(
+        application,
+        status: LoanStatus.fundIssue,
+        issueReportedAt: reportedAt,
+        issueReason: params.issueReason,
+      );
+      return application;
+    }
+
+    if (params.status == LoanStatus.disbursed) {
+      final disbursementDate = params.disbursementDate ?? _today;
+      final principal =
+          current.counterOfferPrincipalRupees ?? current.requestedAmountRupees;
+      late final Loan loan;
+      final existingIndex = current.loanId == null
+          ? -1
+          : loans.indexWhere((item) => item.id == current.loanId);
+      if (existingIndex >= 0) {
+        final existing = loans[existingIndex];
+        loan = existing.copyWith(
+          status: LoanStatus.disbursed,
+          disbursementDate: disbursementDate,
+          schedule: EmiCalculator.calculate(
+            principalRupees: existing.principalRupees,
+            annualInterestRatePercent: existing.annualInterestRatePercent,
+            frequency: existing.frequency,
+            tenure: existing.tenure,
+            disbursementDate: disbursementDate,
+            skipSundays: existing.frequency == RepaymentFrequency.daily,
+          ),
+          clearDisbursementIssue: true,
+        );
+        loans[existingIndex] = loan;
+      } else {
+        loan = _disburse(
+          borrowerId: current.borrowerId,
+          borrowerName: current.borrowerName,
+          borrowerPhone: current.borrowerPhone,
+          purpose: current.purpose,
+          principal: principal,
+          rate: current.annualInterestRatePercent,
+          frequency: current.frequency,
+          tenure: current.tenure,
+          disbursementDate: disbursementDate,
+          applicationId: current.id,
+          status: LoanStatus.disbursed,
+        );
+        loans.insert(0, loan);
+      }
+      final application = current.copyWith(
+        status: LoanStatus.disbursed,
+        loanId: loan.id,
+        disbursementDate: disbursementDate,
+        clearDisbursementIssue: true,
+      );
+      applications[index] = application;
+      _refreshCustomerAggregates();
+      return application;
+    }
+
+    final application = current.copyWith(
       status: params.status,
       reviewedAt: DateTime.now(),
       rejectionReason: params.rejectionReason,
       counterOfferPrincipalRupees: params.counterOfferPrincipalRupees,
     );
     applications[index] = application;
-
-    if (params.status == LoanStatus.approved) {
-      final principal =
-          params.counterOfferPrincipalRupees ??
-          application.requestedAmountRupees;
-      final loan = _disburse(
-        borrowerId: application.borrowerId,
-        borrowerName: application.borrowerName,
-        borrowerPhone: application.borrowerPhone,
-        purpose: application.purpose,
-        principal: principal,
-        rate: application.annualInterestRatePercent,
-        frequency: application.frequency,
-        tenure: application.tenure,
-        disbursementDate: _today,
-      );
-      loans.insert(0, loan);
-    }
     return application;
+  }
+
+  void _updateLinkedLoan(
+    LoanApplication application, {
+    required LoanStatus status,
+    DateTime? issueReportedAt,
+    String? issueReason,
+  }) {
+    final loanId = application.loanId;
+    if (loanId == null) return;
+    final loanIndex = loans.indexWhere((loan) => loan.id == loanId);
+    if (loanIndex < 0) return;
+    loans[loanIndex] = loans[loanIndex].copyWith(
+      status: status,
+      disbursementIssueReportedAt: issueReportedAt,
+      disbursementIssueReason: issueReason,
+    );
+  }
+
+  void _activateConfirmedLoans([DateTime? now]) {
+    final clock = now ?? DateTime.now();
+    for (var i = 0; i < loans.length; i++) {
+      final loan = loans[i];
+      if (loan.status != LoanStatus.disbursed) continue;
+      if (!DisbursementPolicy.hasEmiStarted(
+        status: loan.status,
+        disbursementDate: loan.disbursementDate,
+        now: clock,
+        issueReportedAt: loan.disbursementIssueReportedAt,
+      )) {
+        continue;
+      }
+      loans[i] = loan.copyWith(status: LoanStatus.active);
+    }
+    for (var i = 0; i < applications.length; i++) {
+      final application = applications[i];
+      if (application.status != LoanStatus.disbursed) continue;
+      if (!DisbursementPolicy.hasEmiStarted(
+        status: application.status,
+        disbursementDate: application.disbursementDate,
+        now: clock,
+        issueReportedAt: application.disbursementIssueReportedAt,
+      )) {
+        continue;
+      }
+      applications[i] = application.copyWith(status: LoanStatus.active);
+    }
   }
 
   Loan createLoan(CreateLoanParams params) {
@@ -442,6 +584,8 @@ class LendingMockStore {
     required RepaymentFrequency frequency,
     required int tenure,
     required DateTime disbursementDate,
+    String? applicationId,
+    LoanStatus status = LoanStatus.active,
   }) {
     final schedule = EmiCalculator.calculate(
       principalRupees: principal,
@@ -457,7 +601,7 @@ class LendingMockStore {
       borrowerName: borrowerName,
       borrowerPhone: borrowerPhone,
       purpose: purpose,
-      status: LoanStatus.active,
+      status: status,
       principalRupees: principal,
       annualInterestRatePercent: rate,
       frequency: frequency,
@@ -465,6 +609,7 @@ class LendingMockStore {
       appliedAt: DateTime.now(),
       disbursementDate: disbursementDate,
       schedule: schedule,
+      applicationId: applicationId,
     );
   }
 
@@ -485,9 +630,10 @@ class LendingMockStore {
   }
 
   List<CollectionEntry> collectionSheet(DateTime date) {
+    _activateConfirmedLoans();
     final day = DateTime(date.year, date.month, date.day);
     final entries = <CollectionEntry>[];
-    for (final loan in loans.where((l) => l.status.isOpen)) {
+    for (final loan in loans.where((l) => l.status.isCollectable)) {
       for (final installment in loan.schedule.installments) {
         if (!AppDateUtils.isSameDay(installment.dueDate, day)) continue;
         if (installment.isSettled) continue;

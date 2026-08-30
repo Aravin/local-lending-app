@@ -21,12 +21,16 @@ class UpdateLoanStatusParams extends Equatable {
     required this.status,
     this.rejectionReason,
     this.counterOfferPrincipalRupees,
+    this.disbursementDate,
+    this.issueReason,
   });
 
   final String applicationId;
   final LoanStatus status;
   final String? rejectionReason;
   final double? counterOfferPrincipalRupees;
+  final DateTime? disbursementDate;
+  final String? issueReason;
 
   @override
   List<Object?> get props => [
@@ -34,6 +38,8 @@ class UpdateLoanStatusParams extends Equatable {
     status,
     rejectionReason,
     counterOfferPrincipalRupees,
+    disbursementDate,
+    issueReason,
   ];
 }
 

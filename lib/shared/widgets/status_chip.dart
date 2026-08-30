@@ -49,6 +49,10 @@ class StatusChip extends StatelessWidget {
         label: 'Disbursed',
         color: Color(0xFF2563EB),
       ),
+      LoanStatus.fundIssue => const StatusChip(
+        label: 'Fund issue',
+        color: Color(0xFFD97706),
+      ),
       LoanStatus.active => const StatusChip(
         label: 'Active',
         color: Color(0xFF0D9488),

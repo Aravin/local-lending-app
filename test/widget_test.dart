@@ -28,7 +28,7 @@ void main() {
     ).thenAnswer((_) => Stream.value(null));
 
     getIt.reset();
-    configureDependencies();
+    configureDependencies(useMocks: true);
     getIt.unregister<AuthRepository>();
     getIt.registerLazySingleton<AuthRepository>(() => mockAuthRepository);
     getIt.unregister<AuthCubit>();

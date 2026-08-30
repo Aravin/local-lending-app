@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:local_lending_app/core/data/lending_mock_store.dart';
 import 'package:local_lending_app/domain/entities/repayment_installment.dart';
+import 'package:local_lending_app/features/admin/domain/repositories/admin_repository.dart';
 import 'package:local_lending_app/features/loans/domain/entities/loan_status.dart';
 import 'package:local_lending_app/features/repayments/domain/entities/payment_method.dart';
 
@@ -112,5 +113,91 @@ void main() {
       entry.outstandingRupees,
       closeTo(installment.amountRupees - partialAmount, 0.001),
     );
+  });
+
+  test('approval does not disburse funds or start EMI', () {
+    final store = LendingMockStore();
+    final before = store.loans.length;
+
+    final application = store.updateApplication(
+      const UpdateLoanStatusParams(
+        applicationId: 'app-pending-1',
+        status: LoanStatus.approved,
+      ),
+    );
+
+    expect(application.status, LoanStatus.approved);
+    expect(store.loans.length, before);
+  });
+
+  test('release funds creates a disbursed loan from the disbursement date', () {
+    final store = LendingMockStore();
+    final disbursementDate = DateTime(2026, 8, 30);
+
+    final application = store.updateApplication(
+      UpdateLoanStatusParams(
+        applicationId: 'app-approved-1',
+        status: LoanStatus.disbursed,
+        disbursementDate: disbursementDate,
+      ),
+    );
+
+    expect(application.status, LoanStatus.disbursed);
+    expect(application.disbursementDate, disbursementDate);
+    expect(application.canReportDisbursementIssue(disbursementDate), isTrue);
+
+    final loan = store.loans.firstWhere(
+      (item) => item.id == application.loanId,
+    );
+    expect(loan.status, LoanStatus.disbursed);
+    expect(loan.schedule.disbursementDate, disbursementDate);
+    expect(
+      () => store.applyPayment(
+        loanId: loan.id,
+        borrowerId: loan.borrowerId,
+        amountRupees: 100,
+        method: PaymentMethod.cash,
+      ),
+      throwsStateError,
+    );
+  });
+
+  test('borrower can report a missing fund during the confirmation window', () {
+    final store = LendingMockStore();
+    store.updateApplication(
+      UpdateLoanStatusParams(
+        applicationId: 'app-approved-1',
+        status: LoanStatus.disbursed,
+        disbursementDate: DateTime.now(),
+      ),
+    );
+
+    final reported = store.updateApplication(
+      const UpdateLoanStatusParams(
+        applicationId: 'app-approved-1',
+        status: LoanStatus.fundIssue,
+        issueReason: 'Funds not received',
+      ),
+    );
+
+    expect(reported.status, LoanStatus.fundIssue);
+    expect(reported.disbursementIssueReason, 'Funds not received');
+    final loan = store.loans.firstWhere((item) => item.id == reported.loanId);
+    expect(loan.status, LoanStatus.fundIssue);
+  });
+
+  test('EMI becomes active after the confirmation window', () {
+    final store = LendingMockStore();
+    final application = store.updateApplication(
+      UpdateLoanStatusParams(
+        applicationId: 'app-approved-1',
+        status: LoanStatus.disbursed,
+        disbursementDate: DateTime.now().subtract(const Duration(days: 3)),
+      ),
+    );
+
+    final loan = store.getLoan(application.loanId!);
+    expect(loan.status, LoanStatus.active);
+    expect(loan.schedule.disbursementDate.isBefore(DateTime.now()), isTrue);
   });
 }

@@ -33,7 +33,17 @@ class _LoanApplicationsView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Loan application status')),
-      body: BlocBuilder<LoanApplicationsCubit, LoanApplicationsState>(
+      body: BlocConsumer<LoanApplicationsCubit, LoanApplicationsState>(
+        listenWhen: (previous, current) =>
+            previous.errorMessage != current.errorMessage ||
+            previous.infoMessage != current.infoMessage,
+        listener: (context, state) {
+          final message = state.errorMessage ?? state.infoMessage;
+          if (message == null) return;
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(content: Text(message)));
+        },
         builder: (context, state) {
           if (state.loading) {
             return const Center(child: CircularProgressIndicator());
@@ -121,7 +131,7 @@ class _ApplicationCard extends StatelessWidget {
               'Applied ${AppDateUtils.formatDisplay(application.requestedAt)}',
             ),
             const SizedBox(height: 8),
-            Text(application.status.borrowerMessage),
+            Text(application.trackingMessage()),
             if (application.rejectionReason != null) ...[
               const SizedBox(height: 8),
               Text('Reason: ${application.rejectionReason}'),
@@ -132,11 +142,55 @@ class _ApplicationCard extends StatelessWidget {
                 'Counter-offer ${CurrencyFormatter.format(application.counterOfferPrincipalRupees!)}',
               ),
             ],
+            if (application.canReportDisbursementIssue()) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => _reportIssue(context, application),
+                icon: const Icon(Icons.report_gmailerrorred_outlined),
+                label: const Text('Fund not received'),
+              ),
+            ],
             const SizedBox(height: 16),
             StatusTimeline(steps: _stepsFor(application)),
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _reportIssue(
+    BuildContext context,
+    LoanApplication application,
+  ) async {
+    final controller = TextEditingController(text: 'Funds not received');
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Report fund issue'),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'What went wrong?',
+            hintText: 'Funds not received in my account',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text),
+            child: const Text('Report issue'),
+          ),
+        ],
+      ),
+    );
+    if (reason == null || reason.trim().isEmpty || !context.mounted) return;
+    await context.read<LoanApplicationsCubit>().reportFundIssue(
+      applicationId: application.id,
+      reason: reason.trim(),
     );
   }
 
@@ -177,11 +231,21 @@ class _ApplicationCard extends StatelessWidget {
         ),
         StatusStep(
           title: 'Disbursement',
-          subtitle: status.isOpen ? 'Loan is live' : 'After approval',
-          state: status.isOpen
-              ? StatusStepState.completed
-              : status == LoanStatus.approved
+          subtitle: status == LoanStatus.approved
+              ? 'Waiting for fund release'
+              : status == LoanStatus.disbursed
+              ? 'Confirm receipt within 2 days'
+              : status == LoanStatus.fundIssue
+              ? 'Fund issue reported'
+              : status.isCollectable || status == LoanStatus.closed
+              ? 'Funds released'
+              : 'After approval',
+          state: status == LoanStatus.approved
               ? StatusStepState.current
+              : status == LoanStatus.disbursed || status == LoanStatus.fundIssue
+              ? StatusStepState.current
+              : status.isCollectable || status == LoanStatus.closed
+              ? StatusStepState.completed
               : StatusStepState.upcoming,
         ),
       ],

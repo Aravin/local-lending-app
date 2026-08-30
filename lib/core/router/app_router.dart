@@ -142,8 +142,7 @@ class AppRouter {
         GoRoute(
           path: '/admin/loans/requests',
           name: 'adminLoanRequests',
-          builder: (context, state) =>
-              const LoanApprovalsPage(quickActionsOnly: true),
+          redirect: (context, state) => '/admin/loans',
         ),
         GoRoute(
           path: '/admin/collections',

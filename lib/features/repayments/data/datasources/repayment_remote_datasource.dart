@@ -152,7 +152,7 @@ class RepaymentFirestoreDataSource implements RepaymentRemoteDataSource {
     final entries = <CollectionEntryModel>[];
     for (final doc in snapshot.docs) {
       final loan = LoanModel.fromJson({...doc.data(), 'id': doc.id}).toEntity();
-      if (!loan.status.isOpen) continue;
+      if (!loan.status.isCollectable) continue;
       for (final installment in loan.schedule.installments) {
         final isDueDate =
             installment.dueDate.year == date.year &&

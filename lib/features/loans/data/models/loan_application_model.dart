@@ -30,6 +30,12 @@ abstract class LoanApplicationModel with _$LoanApplicationModel {
     String? rejectionReason,
     double? counterOfferPrincipalRupees,
     @Default(24) double annualInterestRatePercent,
+    String? loanId,
+    @JsonKey(fromJson: optionalDateTimeFromJson, toJson: optionalDateTimeToJson)
+    DateTime? disbursementDate,
+    @JsonKey(fromJson: optionalDateTimeFromJson, toJson: optionalDateTimeToJson)
+    DateTime? disbursementIssueReportedAt,
+    String? disbursementIssueReason,
   }) = _LoanApplicationModel;
 
   factory LoanApplicationModel.fromJson(Map<String, dynamic> json) =>
@@ -52,6 +58,10 @@ abstract class LoanApplicationModel with _$LoanApplicationModel {
       rejectionReason: entity.rejectionReason,
       counterOfferPrincipalRupees: entity.counterOfferPrincipalRupees,
       annualInterestRatePercent: entity.annualInterestRatePercent,
+      loanId: entity.loanId,
+      disbursementDate: entity.disbursementDate,
+      disbursementIssueReportedAt: entity.disbursementIssueReportedAt,
+      disbursementIssueReason: entity.disbursementIssueReason,
     );
   }
 
@@ -72,6 +82,10 @@ abstract class LoanApplicationModel with _$LoanApplicationModel {
       rejectionReason: rejectionReason,
       counterOfferPrincipalRupees: counterOfferPrincipalRupees,
       annualInterestRatePercent: annualInterestRatePercent,
+      loanId: loanId,
+      disbursementDate: disbursementDate,
+      disbursementIssueReportedAt: disbursementIssueReportedAt,
+      disbursementIssueReason: disbursementIssueReason,
     );
   }
 }

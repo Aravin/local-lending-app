@@ -78,7 +78,7 @@ class LoanMockDataSource implements LoanRemoteDataSource {
   @override
   Future<List<LoanModel>> getAllLoans() async {
     await _wait();
-    return _store.loans.map(LoanModel.fromEntity).toList();
+    return _store.getAllLoans().map(LoanModel.fromEntity).toList();
   }
 }
 

@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:local_lending_app/core/data/json_dates.dart';
+import 'package:local_lending_app/core/utils/disbursement_policy.dart';
 import 'package:local_lending_app/domain/entities/repayment_frequency.dart';
 import 'package:local_lending_app/domain/entities/repayment_installment.dart';
 import 'package:local_lending_app/domain/entities/repayment_schedule.dart';
@@ -38,6 +39,10 @@ abstract class LoanModel with _$LoanModel {
     DateTime? closedDate,
     String? rejectionReason,
     double? counterOfferPrincipalRupees,
+    String? applicationId,
+    @JsonKey(fromJson: optionalDateTimeFromJson, toJson: optionalDateTimeToJson)
+    DateTime? disbursementIssueReportedAt,
+    String? disbursementIssueReason,
   }) = _LoanModel;
 
   factory LoanModel.fromJson(Map<String, dynamic> json) =>
@@ -60,6 +65,9 @@ abstract class LoanModel with _$LoanModel {
       closedDate: loan.closedDate,
       rejectionReason: loan.rejectionReason,
       counterOfferPrincipalRupees: loan.counterOfferPrincipalRupees,
+      applicationId: loan.applicationId,
+      disbursementIssueReportedAt: loan.disbursementIssueReportedAt,
+      disbursementIssueReason: loan.disbursementIssueReason,
       installmentAmountRupees: loan.schedule.installmentAmountRupees,
       totalRepayableRupees: loan.schedule.totalRepayableRupees,
       totalInterestRupees: loan.schedule.totalInterestRupees,
@@ -74,6 +82,13 @@ abstract class LoanModel with _$LoanModel {
     final start = disbursementDate ?? appliedAt;
     final today = DateTime.now();
     final todayDate = DateTime(today.year, today.month, today.day);
+    final storedStatus = LoanStatus.values.byName(status);
+    final emiStarted = DisbursementPolicy.hasEmiStarted(
+      status: storedStatus,
+      disbursementDate: disbursementDate,
+      now: todayDate,
+      issueReportedAt: disbursementIssueReportedAt,
+    );
     final resolvedInstallments = installments.map((item) {
       final installment = item.toEntity();
       final dueDate = DateTime(
@@ -81,21 +96,24 @@ abstract class LoanModel with _$LoanModel {
         installment.dueDate.month,
         installment.dueDate.day,
       );
-      if (!installment.isSettled &&
+      if (emiStarted &&
+          !installment.isSettled &&
           installment.status != InstallmentStatus.skipped &&
           dueDate.isBefore(todayDate)) {
         return installment.copyWith(status: InstallmentStatus.overdue);
       }
       return installment;
     }).toList();
-    final storedStatus = LoanStatus.values.byName(status);
-    final resolvedStatus =
-        storedStatus.isOpen &&
-            resolvedInstallments.any(
-              (item) => item.status == InstallmentStatus.overdue,
-            )
-        ? LoanStatus.overdue
-        : storedStatus;
+    final hasOverdue = resolvedInstallments.any(
+      (item) => item.status == InstallmentStatus.overdue,
+    );
+    final resolvedStatus = DisbursementPolicy.resolvedStatus(
+      status: storedStatus,
+      disbursementDate: disbursementDate,
+      now: todayDate,
+      issueReportedAt: disbursementIssueReportedAt,
+      hasOverdueInstallments: hasOverdue,
+    );
     return Loan(
       id: id,
       borrowerId: borrowerId,
@@ -112,6 +130,9 @@ abstract class LoanModel with _$LoanModel {
       closedDate: closedDate,
       rejectionReason: rejectionReason,
       counterOfferPrincipalRupees: counterOfferPrincipalRupees,
+      applicationId: applicationId,
+      disbursementIssueReportedAt: disbursementIssueReportedAt,
+      disbursementIssueReason: disbursementIssueReason,
       schedule: RepaymentSchedule(
         principalRupees: principalRupees,
         annualInterestRatePercent: annualInterestRatePercent,

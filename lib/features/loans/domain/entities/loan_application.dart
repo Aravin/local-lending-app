@@ -1,4 +1,6 @@
 import 'package:equatable/equatable.dart';
+import 'package:local_lending_app/core/utils/date_utils.dart';
+import 'package:local_lending_app/core/utils/disbursement_policy.dart';
 import 'package:local_lending_app/domain/entities/repayment_frequency.dart';
 import 'package:local_lending_app/features/loans/domain/entities/loan_purpose.dart';
 import 'package:local_lending_app/features/loans/domain/entities/loan_status.dart';
@@ -21,6 +23,10 @@ class LoanApplication extends Equatable {
     this.rejectionReason,
     this.counterOfferPrincipalRupees,
     this.annualInterestRatePercent = 24,
+    this.loanId,
+    this.disbursementDate,
+    this.disbursementIssueReportedAt,
+    this.disbursementIssueReason,
   });
 
   final String id;
@@ -38,6 +44,33 @@ class LoanApplication extends Equatable {
   final String? rejectionReason;
   final double? counterOfferPrincipalRupees;
   final double annualInterestRatePercent;
+  final String? loanId;
+  final DateTime? disbursementDate;
+  final DateTime? disbursementIssueReportedAt;
+  final String? disbursementIssueReason;
+
+  bool canReportDisbursementIssue([DateTime? now]) {
+    return DisbursementPolicy.canReportIssue(
+      status: status,
+      disbursementDate: disbursementDate,
+      now: now ?? DateTime.now(),
+      issueReportedAt: disbursementIssueReportedAt,
+    );
+  }
+
+  String trackingMessage([DateTime? now]) {
+    final clock = now ?? DateTime.now();
+    if (status == LoanStatus.disbursed && disbursementDate != null) {
+      final deadline = DisbursementPolicy.confirmationDeadline(
+        disbursementDate!,
+      );
+      if (canReportDisbursementIssue(clock)) {
+        return 'Funds were released on ${AppDateUtils.formatDisplay(disbursementDate!)}. Report if not received by ${AppDateUtils.formatDisplay(deadline.subtract(const Duration(days: 1)))}. EMI starts from the disbursement date if no issue is reported.';
+      }
+      return 'Confirmation window closed. EMI started from ${AppDateUtils.formatDisplay(disbursementDate!)}.';
+    }
+    return status.borrowerMessage;
+  }
 
   @override
   List<Object?> get props => [
@@ -56,6 +89,10 @@ class LoanApplication extends Equatable {
     rejectionReason,
     counterOfferPrincipalRupees,
     annualInterestRatePercent,
+    loanId,
+    disbursementDate,
+    disbursementIssueReportedAt,
+    disbursementIssueReason,
   ];
 
   LoanApplication copyWith({
@@ -64,6 +101,11 @@ class LoanApplication extends Equatable {
     DateTime? reviewedAt,
     String? rejectionReason,
     double? counterOfferPrincipalRupees,
+    String? loanId,
+    DateTime? disbursementDate,
+    DateTime? disbursementIssueReportedAt,
+    String? disbursementIssueReason,
+    bool clearDisbursementIssue = false,
   }) {
     return LoanApplication(
       id: id,
@@ -82,6 +124,14 @@ class LoanApplication extends Equatable {
       counterOfferPrincipalRupees:
           counterOfferPrincipalRupees ?? this.counterOfferPrincipalRupees,
       annualInterestRatePercent: annualInterestRatePercent,
+      loanId: loanId ?? this.loanId,
+      disbursementDate: disbursementDate ?? this.disbursementDate,
+      disbursementIssueReportedAt: clearDisbursementIssue
+          ? null
+          : disbursementIssueReportedAt ?? this.disbursementIssueReportedAt,
+      disbursementIssueReason: clearDisbursementIssue
+          ? null
+          : disbursementIssueReason ?? this.disbursementIssueReason,
     );
   }
 }

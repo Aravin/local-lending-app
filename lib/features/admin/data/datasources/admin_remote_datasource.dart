@@ -6,6 +6,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:local_lending_app/core/data/lending_mock_store.dart';
 import 'package:local_lending_app/core/utils/date_utils.dart';
+import 'package:local_lending_app/core/utils/disbursement_policy.dart';
 import 'package:local_lending_app/core/utils/emi_calculator.dart';
 import 'package:local_lending_app/domain/entities/repayment_frequency.dart';
 import 'package:local_lending_app/domain/entities/repayment_installment.dart';
@@ -224,7 +225,6 @@ class AdminFirestoreDataSource implements AdminRemoteDataSource {
     final applicationRef = _firestore
         .collection('loan_applications')
         .doc(params.applicationId);
-    final loanRef = _firestore.collection('loans').doc();
     return _firestore.runTransaction((transaction) async {
       final snapshot = await transaction.get(applicationRef);
       final data = snapshot.data();
@@ -234,37 +234,121 @@ class AdminFirestoreDataSource implements AdminRemoteDataSource {
       final current = LoanApplicationModel.fromJson({
         ...data,
         'id': snapshot.id,
-      });
-      if (current.status != LoanStatus.pending.name) {
-        throw StateError('Application ${params.applicationId} was reviewed');
+      }).toEntity();
+      if (!DisbursementPolicy.isAllowedTransition(
+        current.status,
+        params.status,
+      )) {
+        throw StateError(
+          'Cannot change loan status from ${current.status.name} to ${params.status.name}',
+        );
       }
+
+      if (params.status == LoanStatus.fundIssue) {
+        if (!current.canReportDisbursementIssue()) {
+          throw StateError(
+            'The fund-confirmation window has closed for ${params.applicationId}',
+          );
+        }
+        final reportedAt = DateTime.now();
+        final updated = current.copyWith(
+          status: LoanStatus.fundIssue,
+          disbursementIssueReportedAt: reportedAt,
+          disbursementIssueReason: params.issueReason,
+        );
+        final model = LoanApplicationModel.fromEntity(updated);
+        DocumentReference<Map<String, dynamic>>? loanRef;
+        DocumentSnapshot<Map<String, dynamic>>? loanSnap;
+        if (current.loanId != null) {
+          loanRef = _firestore.collection('loans').doc(current.loanId);
+          loanSnap = await transaction.get(loanRef);
+        }
+        transaction.set(applicationRef, model.toJson());
+        if (loanRef != null && loanSnap != null && loanSnap.exists) {
+          final loan = LoanModel.fromJson({
+            ...loanSnap.data()!,
+            'id': loanSnap.id,
+          }).toEntity();
+          transaction.set(
+            loanRef,
+            LoanModel.fromEntity(
+              loan.copyWith(
+                status: LoanStatus.fundIssue,
+                disbursementIssueReportedAt: reportedAt,
+                disbursementIssueReason: params.issueReason,
+              ),
+            ).toJson(),
+          );
+        }
+        return model;
+      }
+
+      if (params.status == LoanStatus.disbursed) {
+        final disbursementDate = params.disbursementDate ?? DateTime.now();
+        final loanId =
+            current.loanId ?? _firestore.collection('loans').doc().id;
+        final loanRef = _firestore.collection('loans').doc(loanId);
+        final loanSnap = await transaction.get(loanRef);
+        final principal =
+            current.counterOfferPrincipalRupees ??
+            current.requestedAmountRupees;
+        final Loan loan;
+        if (loanSnap.exists && loanSnap.data() != null) {
+          final existing = LoanModel.fromJson({
+            ...loanSnap.data()!,
+            'id': loanSnap.id,
+          }).toEntity();
+          loan = existing.copyWith(
+            status: LoanStatus.disbursed,
+            disbursementDate: disbursementDate,
+            schedule: EmiCalculator.calculate(
+              principalRupees: existing.principalRupees,
+              annualInterestRatePercent: existing.annualInterestRatePercent,
+              frequency: existing.frequency,
+              tenure: existing.tenure,
+              disbursementDate: disbursementDate,
+              skipSundays: existing.frequency == RepaymentFrequency.daily,
+            ),
+            clearDisbursementIssue: true,
+          );
+        } else {
+          loan = _buildLoan(
+            id: loanId,
+            borrowerId: current.borrowerId,
+            borrowerName: current.borrowerName,
+            borrowerPhone: current.borrowerPhone,
+            principalRupees: principal,
+            annualInterestRatePercent: current.annualInterestRatePercent,
+            tenure: current.tenure,
+            frequency: current.frequency,
+            disbursementDate: disbursementDate,
+            purpose: current.purpose,
+            appliedAt: current.requestedAt,
+            status: LoanStatus.disbursed,
+            applicationId: current.id,
+          );
+        }
+        final updated = current.copyWith(
+          status: LoanStatus.disbursed,
+          loanId: loan.id,
+          disbursementDate: disbursementDate,
+          clearDisbursementIssue: true,
+        );
+        final model = LoanApplicationModel.fromEntity(updated);
+        transaction.set(applicationRef, model.toJson());
+        transaction.set(loanRef, LoanModel.fromEntity(loan).toJson());
+        return model;
+      }
+
       final updated = current.copyWith(
-        status: params.status.name,
+        status: params.status,
         reviewedAt: DateTime.now(),
         rejectionReason: params.rejectionReason,
         counterOfferPrincipalRupees: params.counterOfferPrincipalRupees,
       );
-      transaction.set(applicationRef, updated.toJson());
-      if (params.status == LoanStatus.approved) {
-        final application = updated.toEntity();
-        final loan = _buildLoan(
-          id: loanRef.id,
-          borrowerId: application.borrowerId,
-          borrowerName: application.borrowerName,
-          borrowerPhone: application.borrowerPhone,
-          principalRupees:
-              params.counterOfferPrincipalRupees ??
-              application.requestedAmountRupees,
-          annualInterestRatePercent: application.annualInterestRatePercent,
-          tenure: application.tenure,
-          frequency: application.frequency,
-          disbursementDate: DateTime.now(),
-          purpose: application.purpose,
-          appliedAt: application.requestedAt,
-        );
-        transaction.set(loanRef, LoanModel.fromEntity(loan).toJson());
-      }
-      return updated;
+      final model = LoanApplicationModel.fromEntity(updated);
+      transaction.set(applicationRef, model.toJson());
+      return model;
     });
   }
 
@@ -540,7 +624,7 @@ class AdminFirestoreDataSource implements AdminRemoteDataSource {
     DateTime date,
   ) {
     final entries = <CollectionEntryModel>[];
-    for (final loan in loans.where((item) => item.status.isOpen)) {
+    for (final loan in loans.where((item) => item.status.isCollectable)) {
       for (final installment in loan.schedule.installments) {
         if (!AppDateUtils.isSameDay(installment.dueDate, date) ||
             installment.isSettled) {
@@ -578,6 +662,8 @@ class AdminFirestoreDataSource implements AdminRemoteDataSource {
     required DateTime disbursementDate,
     required LoanPurpose purpose,
     required DateTime appliedAt,
+    LoanStatus status = LoanStatus.active,
+    String? applicationId,
   }) {
     final schedule = EmiCalculator.calculate(
       principalRupees: principalRupees,
@@ -593,7 +679,7 @@ class AdminFirestoreDataSource implements AdminRemoteDataSource {
       borrowerName: borrowerName,
       borrowerPhone: borrowerPhone,
       purpose: purpose,
-      status: LoanStatus.active,
+      status: status,
       principalRupees: principalRupees,
       annualInterestRatePercent: annualInterestRatePercent,
       frequency: frequency,
@@ -601,6 +687,7 @@ class AdminFirestoreDataSource implements AdminRemoteDataSource {
       appliedAt: appliedAt,
       disbursementDate: disbursementDate,
       schedule: schedule,
+      applicationId: applicationId,
     );
   }
 

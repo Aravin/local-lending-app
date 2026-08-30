@@ -57,4 +57,24 @@ void main() {
     final result = await useCase(params);
     expect(result, Right(application));
   });
+
+  test('requires a fund issue reason', () async {
+    final result = await useCase(
+      const UpdateLoanStatusParams(
+        applicationId: 'app-1',
+        status: LoanStatus.fundIssue,
+      ),
+    );
+    expect(result.isLeft(), isTrue);
+  });
+
+  test('rejects unsupported status changes', () async {
+    final result = await useCase(
+      const UpdateLoanStatusParams(
+        applicationId: 'app-1',
+        status: LoanStatus.active,
+      ),
+    );
+    expect(result.isLeft(), isTrue);
+  });
 }

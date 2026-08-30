@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:local_lending_app/core/di/injection.dart';
 import 'package:local_lending_app/core/utils/currency_formatter.dart';
 import 'package:local_lending_app/core/utils/date_utils.dart';
+import 'package:local_lending_app/core/utils/disbursement_policy.dart';
 import 'package:local_lending_app/features/admin/domain/entities/kyc_profile.dart';
 import 'package:local_lending_app/features/admin/domain/entities/risk_tier.dart';
 import 'package:local_lending_app/features/auth/domain/entities/user_role.dart';
@@ -12,6 +13,7 @@ import 'package:local_lending_app/features/auth/presentation/bloc/auth_state.dar
 import 'package:local_lending_app/features/dashboard/presentation/bloc/borrower_dashboard_cubit.dart';
 import 'package:local_lending_app/features/loans/domain/entities/loan.dart';
 import 'package:local_lending_app/features/loans/domain/entities/loan_application.dart';
+import 'package:local_lending_app/features/loans/domain/entities/loan_status.dart';
 import 'package:local_lending_app/flavors/flavor_config.dart';
 import 'package:local_lending_app/shared/widgets/installment_tile.dart';
 import 'package:local_lending_app/shared/widgets/portal_switch_action.dart';
@@ -141,6 +143,7 @@ class _DashboardBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final loan = state.activeLoan;
+    final canPay = loan != null && loan.status.isCollectable;
     return RefreshIndicator(
       onRefresh: () {
         final auth = context.read<AuthCubit>().state;
@@ -166,7 +169,11 @@ class _DashboardBody extends StatelessWidget {
           const SizedBox(height: 20),
           if (state.kyc != null && state.kyc!.canSubmit())
             _KycActionBanner(profile: state.kyc!),
-          if (loan != null)
+          if (loan != null && loan.status == LoanStatus.disbursed)
+            _DisbursementBanner(loan: loan)
+          else if (loan != null && loan.status == LoanStatus.fundIssue)
+            const _FundIssueBanner()
+          else if (loan != null)
             _NextDueCard(loan: loan)
           else
             const _EmptyLoanCard(),
@@ -194,7 +201,7 @@ class _DashboardBody extends StatelessWidget {
               ),
             ],
           ),
-          if (loan != null) ...[
+          if (canPay) ...[
             const SizedBox(height: 14),
             _ActionCard(
               icon: Icons.qr_code_scanner,
@@ -228,7 +235,7 @@ class _DashboardBody extends StatelessWidget {
                 ),
           ],
           const SizedBox(height: 24),
-          if (loan != null) ...[
+          if (canPay) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -283,6 +290,53 @@ class _DashboardBody extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _DisbursementBanner extends StatelessWidget {
+  const _DisbursementBanner({required this.loan});
+
+  final Loan loan;
+
+  @override
+  Widget build(BuildContext context) {
+    final disbursedOn = loan.disbursementDate ?? loan.appliedAt;
+    final deadline = DisbursementPolicy.confirmationDeadline(disbursedOn);
+    return Material(
+      color: const Color(0xFFEFF6FF),
+      borderRadius: BorderRadius.circular(16),
+      child: ListTile(
+        leading: const Icon(Icons.account_balance_wallet_outlined),
+        title: const Text('Funds released'),
+        subtitle: Text(
+          'Confirm receipt by ${AppDateUtils.formatDisplay(deadline.subtract(const Duration(days: 1)))}. EMI starts from ${AppDateUtils.formatDisplay(disbursedOn)} if no issue is reported.',
+        ),
+        trailing: TextButton(
+          onPressed: () => context.push('/loans/status'),
+          child: const Text('Report issue'),
+        ),
+      ),
+    );
+  }
+}
+
+class _FundIssueBanner extends StatelessWidget {
+  const _FundIssueBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFFFF7ED),
+      borderRadius: BorderRadius.circular(16),
+      child: const ListTile(
+        leading: Icon(
+          Icons.report_gmailerrorred_outlined,
+          color: Color(0xFFD97706),
+        ),
+        title: Text('Fund issue reported'),
+        subtitle: Text('EMI is paused until the lender re-releases the funds.'),
       ),
     );
   }

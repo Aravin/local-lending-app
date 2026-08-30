@@ -13,6 +13,7 @@ class LoanApprovalsState extends Equatable {
     this.applications = const [],
     this.frequencyFilter,
     this.requestedAfter,
+    this.decidingApplicationId,
     this.errorMessage,
     this.infoMessage,
   });
@@ -21,24 +22,36 @@ class LoanApprovalsState extends Equatable {
   final List<LoanApplication> applications;
   final RepaymentFrequency? frequencyFilter;
   final DateTime? requestedAfter;
+  final String? decidingApplicationId;
   final String? errorMessage;
   final String? infoMessage;
 
-  List<LoanApplication> get visible {
-    final pending = applications
-        .where((app) => app.status == LoanStatus.pending)
-        .toList();
-    if (frequencyFilter == null) return pending;
-    return pending.where((app) => app.frequency == frequencyFilter).toList();
+  bool get isDeciding => decidingApplicationId != null;
+
+  List<LoanApplication> _filtered(LoanStatus status) {
+    final matches = applications.where((app) => app.status == status);
+    if (frequencyFilter == null) return matches.toList();
+    return matches.where((app) => app.frequency == frequencyFilter).toList();
   }
+
+  List<LoanApplication> get visible => _filtered(LoanStatus.pending);
+
+  List<LoanApplication> get awaitingDisbursement =>
+      _filtered(LoanStatus.approved);
+
+  List<LoanApplication> get inConfirmation => _filtered(LoanStatus.disbursed);
+
+  List<LoanApplication> get fundIssues => _filtered(LoanStatus.fundIssue);
 
   LoanApprovalsState copyWith({
     bool? loading,
     List<LoanApplication>? applications,
     RepaymentFrequency? frequencyFilter,
     DateTime? requestedAfter,
+    String? decidingApplicationId,
     bool clearFrequencyFilter = false,
     bool clearRequestedAfter = false,
+    bool clearDeciding = false,
     String? errorMessage,
     String? infoMessage,
   }) {
@@ -51,6 +64,9 @@ class LoanApprovalsState extends Equatable {
       requestedAfter: clearRequestedAfter
           ? null
           : requestedAfter ?? this.requestedAfter,
+      decidingApplicationId: clearDeciding
+          ? null
+          : decidingApplicationId ?? this.decidingApplicationId,
       errorMessage: errorMessage,
       infoMessage: infoMessage,
     );
@@ -62,6 +78,7 @@ class LoanApprovalsState extends Equatable {
     applications,
     frequencyFilter,
     requestedAfter,
+    decidingApplicationId,
     errorMessage,
     infoMessage,
   ];
@@ -76,14 +93,33 @@ class LoanApprovalsCubit extends Cubit<LoanApprovalsState> {
   final GetLoanApplications _getLoanApplications;
   final UpdateLoanStatus _updateLoanStatus;
 
-  Future<void> load({DateTime? requestedAfter}) async {
-    emit(state.copyWith(loading: true, requestedAfter: requestedAfter));
+  Future<void> load({DateTime? requestedAfter, String? infoMessage}) async {
+    emit(
+      state.copyWith(
+        loading: true,
+        requestedAfter: requestedAfter,
+        clearDeciding: true,
+        infoMessage: infoMessage,
+      ),
+    );
     final result = await _getLoanApplications(requestedAfter: requestedAfter);
     if (isClosed) return;
     result.fold(
-      (failure) =>
-          emit(state.copyWith(loading: false, errorMessage: failure.message)),
-      (apps) => emit(state.copyWith(loading: false, applications: apps)),
+      (failure) => emit(
+        state.copyWith(
+          loading: false,
+          clearDeciding: true,
+          errorMessage: failure.message,
+        ),
+      ),
+      (apps) => emit(
+        state.copyWith(
+          loading: false,
+          applications: apps,
+          clearDeciding: true,
+          infoMessage: infoMessage,
+        ),
+      ),
     );
   }
 
@@ -105,11 +141,32 @@ class LoanApprovalsCubit extends Cubit<LoanApprovalsState> {
   }
 
   Future<void> decide(UpdateLoanStatusParams params) async {
+    if (state.isDeciding) return;
+    emit(state.copyWith(decidingApplicationId: params.applicationId));
     final result = await _updateLoanStatus(params);
     if (isClosed) return;
     result.fold(
-      (failure) => emit(state.copyWith(errorMessage: failure.message)),
-      (_) => load(requestedAfter: state.requestedAfter),
+      (failure) => emit(
+        state.copyWith(clearDeciding: true, errorMessage: failure.message),
+      ),
+      (_) => load(
+        requestedAfter: state.requestedAfter,
+        infoMessage: _infoFor(params),
+      ),
     );
+  }
+
+  String _infoFor(UpdateLoanStatusParams params) {
+    return switch (params.status) {
+      LoanStatus.rejected => 'Application rejected.',
+      LoanStatus.disbursed =>
+        'Funds marked as released. Borrower has 2 days to report a problem.',
+      LoanStatus.fundIssue => 'Fund issue recorded.',
+      LoanStatus.approved when params.counterOfferPrincipalRupees != null =>
+        'Counter-offer approved. Release funds after you send the amount.',
+      LoanStatus.approved =>
+        'Loan approved. Release funds after you send the amount.',
+      _ => 'Loan status updated.',
+    };
   }
 }

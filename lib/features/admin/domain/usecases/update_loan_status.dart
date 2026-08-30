@@ -29,6 +29,23 @@ class UpdateLoanStatus {
         const Left(ValidationFailure('Counter-offer amount must be positive.')),
       );
     }
+    if (params.status == LoanStatus.fundIssue &&
+        (params.issueReason == null || params.issueReason!.trim().isEmpty)) {
+      return Future.value(
+        const Left(ValidationFailure('Describe the fund issue.')),
+      );
+    }
+    const allowed = {
+      LoanStatus.approved,
+      LoanStatus.rejected,
+      LoanStatus.disbursed,
+      LoanStatus.fundIssue,
+    };
+    if (!allowed.contains(params.status)) {
+      return Future.value(
+        const Left(ValidationFailure('Unsupported loan status change.')),
+      );
+    }
     return _repository.updateLoanStatus(params);
   }
 }
